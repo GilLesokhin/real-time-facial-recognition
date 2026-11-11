@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Modal } from '../../components/Modal'
 import { PhotoPicker } from '../../components/PhotoPicker'
@@ -27,7 +27,7 @@ export function PersonFormPage() {
     )
   }
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!name.trim()) return setError('Enter a name.')
     if (!photo) return setError('Add a face photo. The terminal matches against it.')

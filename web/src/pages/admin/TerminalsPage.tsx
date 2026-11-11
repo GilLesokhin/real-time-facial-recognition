@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { ExternalLink, MonitorSmartphone, Pencil, Plus, Trash2 } from 'lucide-react'
 import { ConfirmModal } from '../../components/ConfirmModal'
 import { Modal } from '../../components/Modal'
@@ -121,7 +121,7 @@ function TerminalForm({ buildingId, terminal, onClose }: { buildingId: string; t
   const { addTerminal, updateTerminal } = useStore()
   const [name, setName] = useState(terminal?.name ?? '')
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!name.trim()) return
     if (terminal) updateTerminal({ ...terminal, name: name.trim() })

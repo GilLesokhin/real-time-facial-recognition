@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { useStore } from '../store/store'
@@ -17,7 +17,7 @@ export function SignInPage() {
 
   if (currentUser) return <Navigate to="/admin/people" replace />
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!email.trim() || !password) return setError('Enter your email and password.')
     const failure = signIn(email)

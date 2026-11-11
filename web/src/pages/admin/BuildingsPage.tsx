@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 import { ConfirmModal } from '../../components/ConfirmModal'
@@ -112,7 +112,7 @@ function BuildingForm({ building, onClose }: { building?: Building; onClose: () 
   const [name, setName] = useState(building?.name ?? '')
   const [address, setAddress] = useState(building?.address ?? '')
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!name.trim()) return
     if (building) updateBuilding({ ...building, name: name.trim(), address: address.trim() })

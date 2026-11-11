@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { useStore } from '../store/store'
@@ -13,7 +13,7 @@ export function SignUpPage() {
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!name.trim() || !email.trim()) return setError('Enter your name and email.')
     if (password.length < 8) return setError('Use at least 8 characters for the password.')
