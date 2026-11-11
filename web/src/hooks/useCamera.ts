@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 
 export type CameraStatus = 'starting' | 'live' | 'unavailable'
 
-/** Streams the computer's webcam into a <video>. Stops the camera on unmount. */
-export function useCamera() {
+/** Streams the computer's webcam into a <video>. Stops the camera on unmount. The size is a wish; the camera picks the closest it has. */
+export function useCamera({ width = 1280, height = 720 }: { width?: number; height?: number } = {}) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [status, setStatus] = useState<CameraStatus>(() =>
     typeof navigator.mediaDevices?.getUserMedia === 'function' ? 'starting' : 'unavailable',
@@ -15,7 +15,7 @@ export function useCamera() {
     let cancelled = false
 
     navigator.mediaDevices
-      .getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }, audio: false })
+      .getUserMedia({ video: { width: { ideal: width }, height: { ideal: height }, facingMode: 'user' }, audio: false })
       .then((s) => {
         if (cancelled) {
           s.getTracks().forEach((t) => t.stop())
@@ -34,9 +34,9 @@ export function useCamera() {
       cancelled = true
       stream?.getTracks().forEach((t) => t.stop())
     }
-  }, [])
+  }, [width, height])
 
-  /** Grabs the current frame as a JPEG data URL, mirrored like the preview. */
+  /** Grabs the current frame as a JPEG data URL, mirrored: the convention for all face images (see detector.ts). */
   const capture = (maxWidth = 480): string | null => {
     const video = videoRef.current
     if (!video || status !== 'live' || !video.videoWidth) return null

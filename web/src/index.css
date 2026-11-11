@@ -171,7 +171,8 @@ button, input, select { font: inherit; color: inherit; }
 .face-box {
   position: absolute; left: 37.5%; top: 19.6%; width: 25%; height: 46.4%;
   border: 2px solid var(--ink-muted); border-radius: var(--radius-sm);
-  transition: border-color 150ms, background-color 150ms;
+  /* The detector updates 10 times a second; glide between positions instead of jumping. */
+  transition: border-color 150ms, background-color 150ms, left 100ms linear, top 100ms linear, width 100ms linear, height 100ms linear;
 }
 .face-box.granted { border: 3px solid var(--granted); background: rgb(74 222 128 / 0.06); }
 .face-box.denied { border: 3px solid var(--denied); background: rgb(255 107 107 / 0.06); }
@@ -193,6 +194,16 @@ button, input, select { font: inherit; color: inherit; }
   position: fixed; right: 16px; bottom: 16px; width: 280px; padding: 16px;
   display: flex; flex-direction: column; gap: 8px; z-index: 5;
 }
+.request-panel {
+  position: fixed; left: 16px; bottom: 16px; width: 340px; padding: 16px;
+  display: flex; flex-direction: column; gap: 8px; z-index: 5;
+}
+.request { display: flex; gap: 10px; padding-top: 8px; border-top: 1px solid var(--line-100); }
+.request-thumb { width: 56px; height: 56px; flex: none; border-radius: var(--radius-sm); background: var(--bg-200); object-fit: cover; }
+.request-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.request-status.pending { color: var(--accent); }
+.request-status.granted { color: var(--granted); }
+.request-status.denied { color: var(--denied); }
 .page-header .btn-primary { min-width: 152px; }
 .building-name { display: flex; align-items: center; height: 40px; padding: 0 12px; background: var(--bg-200); border: 1px solid var(--line-200); border-radius: var(--radius-sm); cursor: default; }
 .badge-role-unassigned { background: var(--bg-200); color: var(--ink-faint); border: 1px dashed var(--line-200); }
