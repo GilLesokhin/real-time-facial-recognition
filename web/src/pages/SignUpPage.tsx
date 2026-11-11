@@ -1,28 +1,37 @@
 import { useState, type SubmitEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Logo } from '../components/Logo'
-import { useStore } from '../store/store'
+import { ApiError } from '../lib/api'
+import { useAuth } from '../store/auth'
 
 /** Public sign-up. New accounts are unassigned until a Platform Admin gives them a role. */
 export function SignUpPage() {
-  const { state, signUp } = useStore()
+  const { signUp } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
+  const [pending, setPending] = useState(false)
 
-  const onSubmit = (e: SubmitEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!name.trim() || !email.trim()) return setError('Enter your name and email.')
     if (password.length < 8) return setError('Use at least 8 characters for the password.')
     if (password !== confirm) return setError("The passwords don't match.")
-    if (state.users.some((u) => u.email.toLowerCase() === email.trim().toLowerCase()))
-      return setError('That email already has an account.')
-    // The demo doesn't store the password: the backend hashes it.
-    signUp(name.trim(), email.trim())
-    setDone(true)
+    setPending(true)
+    setError(null)
+    try {
+      await signUp(name.trim(), email.trim(), password)
+      setDone(true)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) setError('That email already has an account.')
+      else if (err instanceof ApiError && err.status === 422) setError('Enter a valid email address.')
+      else setError("Can't reach the server. Try again in a moment.")
+    } finally {
+      setPending(false)
+    }
   }
 
   return (
@@ -75,8 +84,8 @@ export function SignUpPage() {
               />
             </label>
             {error && <p className="small error">{error}</p>}
-            <button type="submit" className="btn btn-primary">
-              Sign up
+            <button type="submit" className="btn btn-primary" disabled={pending}>
+              {pending ? 'Creating account…' : 'Sign up'}
             </button>
             <p className="small muted" style={{ textAlign: 'center' }}>
               Already have an account?{' '}

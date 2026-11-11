@@ -18,7 +18,7 @@ export function TerminalsPage() {
 
   if (!currentBuilding) return <p className="card empty muted">No building selected.</p>
 
-  const terminals = state.terminals.filter((t) => t.buildingId === currentBuilding.id)
+  const terminals = state.terminals.filter((t) => t.building_id === currentBuilding.id)
 
   return (
     <>
@@ -49,7 +49,7 @@ export function TerminalsPage() {
             </thead>
             <tbody>
               {terminals.map((t) => {
-                const last = state.events.find((ev) => ev.terminalId === t.id)
+                const last = state.events.find((ev) => ev.terminal_id === t.id)
                 return (
                   <tr key={t.id}>
                     <td>

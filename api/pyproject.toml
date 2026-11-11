@@ -1,0 +1,32 @@
+[project]
+name = "building-entry-api"
+version = "0.1.0"
+description = "Backend for Building Entry"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115",
+    "sqlalchemy>=2.0.36",
+    "alembic>=1.14",
+    "psycopg[binary]>=3.2",
+    "pydantic-settings>=2.6",
+    # Signs the session cookie (used by Starlette's SessionMiddleware).
+    "itsdangerous>=2.2",
+    # Hashes passwords with Argon2.
+    "pwdlib[argon2]>=0.2.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP"]
+ignore = ["E501", "B008"]

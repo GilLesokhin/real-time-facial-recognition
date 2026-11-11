@@ -46,8 +46,8 @@ export function TerminalPage() {
   const { videoRef, status } = useCamera()
 
   const terminal = state.terminals.find((t) => t.id === terminalId)
-  const building = state.buildings.find((b) => b.id === terminal?.buildingId)
-  const people = state.people.filter((p) => p.buildingId === terminal?.buildingId)
+  const building = state.buildings.find((b) => b.id === terminal?.building_id)
+  const people = state.people.filter((p) => p.building_id === terminal?.building_id)
 
   const [phase, setPhase] = useState<Phase>('idle')
   const [match, setMatch] = useState<Person | null>(null)

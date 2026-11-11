@@ -1,24 +1,27 @@
 # Building Entry: front-end mockup
 
-A clickable React + TypeScript mockup of the face-recognition building entry system. It has **no backend**: all data lives in an in-memory store saved to `localStorage`, so the screens can be tried before the Python API exists.
+A React + TypeScript front end for the face-recognition building entry system. **Sign-in is real**: sign-up, sign-in, sign-out and "who am I" go to the Python API (`api/`). Everything else (buildings, people, terminals, the access log, the Admins page) is still mock data saved to `localStorage`, until those endpoints exist.
 
 ## Run it
+
+Start the API first (see `api/`), on http://localhost:8000. Then:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173 and sign in with any password as:
+Open http://localhost:5173. Vite forwards `/api/*` to the API (see `vite.config.ts`), so the browser sees one origin and the session cookie works without CORS.
 
-| Email | Role |
-| -- | -- |
-| avi@example.com | Platform Admin (all buildings, Buildings and Admins pages) |
-| maya@example.com | Building Admin (North Tower) |
-| eli@example.com | Building Admin (Harbor House, Cedar Court) |
-| noa@example.com | Unassigned (can't sign in yet) |
+Sign in as the Platform Admin that the API's migrations create from `PLATFORM_ADMIN_EMAIL` and `PLATFORM_ADMIN_PASSWORD` in `api/.env`. New accounts start Unassigned and can't sign in, and the Admins page doesn't use the API yet, so for now other accounts get a role in the database:
 
-"Reset demo data" in the sidebar restores the seed data.
+```sql
+UPDATE users SET role = 'building_admin' WHERE email = 'someone@example.com';
+```
+
+A Building Admin from the API has no buildings yet, so they see "No buildings". A Platform Admin sees all the mock buildings.
+
+"Reset demo data" in the sidebar restores the mock data.
 
 ## Screens
 

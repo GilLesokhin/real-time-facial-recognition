@@ -47,9 +47,9 @@ export function BuildingsPage() {
             </thead>
             <tbody>
               {state.buildings.map((b) => {
-                const people = state.people.filter((p) => p.buildingId === b.id)
-                const admins = state.users.filter((u) => u.role === 'building_admin' && u.buildingIds.includes(b.id))
-                const terminals = state.terminals.filter((t) => t.buildingId === b.id).length
+                const people = state.people.filter((p) => p.building_id === b.id)
+                const admins = state.users.filter((u) => u.role === 'building_admin' && u.building_ids.includes(b.id))
+                const terminals = state.terminals.filter((t) => t.building_id === b.id).length
                 return (
                   <tr key={b.id}>
                     <td>

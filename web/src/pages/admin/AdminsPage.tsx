@@ -16,7 +16,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
 
 /** Platform Admin only: everyone who signed up, and what they can access. */
 export function AdminsPage() {
-  const { state, currentUserId, isPlatformAdmin, removeUser } = useStore()
+  const { state, currentUser, isPlatformAdmin, removeUser } = useStore()
   const [query, setQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<UserRole | ''>('')
   const [buildingFilter, setBuildingFilter] = useState('')
@@ -31,7 +31,7 @@ export function AdminsPage() {
   const users = state.users
     .filter((u) => !roleFilter || u.role === roleFilter)
     // Who can manage the building: its Building Admins plus every Platform Admin.
-    .filter((u) => !buildingFilter || u.role === 'platform_admin' || u.buildingIds.includes(buildingFilter))
+    .filter((u) => !buildingFilter || u.role === 'platform_admin' || u.building_ids.includes(buildingFilter))
     .filter((u) => !q || `${u.name} ${u.email}`.toLowerCase().includes(q))
     .sort(
       (a, b) =>
@@ -41,7 +41,7 @@ export function AdminsPage() {
   const buildingNames = (u: User) =>
     u.role === 'platform_admin'
       ? 'All buildings'
-      : u.buildingIds.map((id) => state.buildings.find((b) => b.id === id)?.name).filter(Boolean).join(', ') || '—'
+      : u.building_ids.map((id) => state.buildings.find((b) => b.id === id)?.name).filter(Boolean).join(', ') || '—'
 
   return (
     <>
@@ -104,7 +104,7 @@ export function AdminsPage() {
             </thead>
             <tbody>
               {users.map((u) => {
-                const isSelf = u.id === currentUserId
+                const isSelf = u.id === currentUser?.id
                 return (
                   <tr key={u.id}>
                     <td>
@@ -122,7 +122,7 @@ export function AdminsPage() {
                       <span className={`badge badge-role-${u.role}`}>{ROLE_LABEL[u.role]}</span>
                     </td>
                     <td className={u.role === 'unassigned' ? 'faint' : 'muted'}>{buildingNames(u)}</td>
-                    <td className="muted">{formatDate(u.createdAt)}</td>
+                    <td className="muted">{formatDate(u.created_at)}</td>
                     <td>
                       {/* You can't edit or delete your own account (that would lock you out). */}
                       {!isSelf && (
@@ -173,7 +173,7 @@ export function AdminsPage() {
 function AccessForm({ user, onClose }: { user: User; onClose: () => void }) {
   const { state, setUserAccess } = useStore()
   const [role, setRole] = useState<UserRole>(user.role)
-  const [buildingIds, setBuildingIds] = useState<string[]>(user.buildingIds)
+  const [buildingIds, setBuildingIds] = useState<string[]>(user.building_ids)
 
   const needsBuilding = role === 'building_admin' && buildingIds.length === 0
   const toggle = (id: string) =>

@@ -1,28 +1,40 @@
 import { useState, type SubmitEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Logo } from '../components/Logo'
-import { useStore } from '../store/store'
+import { ApiError } from '../lib/api'
+import { useAuth } from '../store/auth'
 
-const ERRORS = {
-  unknown: 'Wrong email or password.',
-  unassigned: "Your account doesn't have access yet. A Platform Admin needs to give you a role.",
+const errorMessage = (err: unknown) => {
+  if (err instanceof ApiError && err.status === 401) return 'Wrong email or password.'
+  if (err instanceof ApiError && err.status === 403)
+    return "Your account doesn't have access yet. A Platform Admin needs to give you a role."
+  if (err instanceof ApiError && err.status === 422) return 'Enter a valid email address.'
+  return "Can't reach the server. Try again in a moment."
 }
 
 export function SignInPage() {
-  const { currentUser, signIn } = useStore()
+  const { status, signIn } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
 
-  if (currentUser) return <Navigate to="/admin/people" replace />
+  if (status === 'signedIn') return <Navigate to="/admin/people" replace />
 
-  const onSubmit = (e: SubmitEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!email.trim() || !password) return setError('Enter your email and password.')
-    const failure = signIn(email)
-    if (failure) return setError(ERRORS[failure])
-    navigate('/admin/people')
+    setPending(true)
+    setError(null)
+    try {
+      await signIn(email.trim(), password)
+      navigate('/admin/people')
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setPending(false)
+    }
   }
 
   return (
@@ -56,8 +68,8 @@ export function SignInPage() {
             />
           </label>
           {error && <p className="small error">{error}</p>}
-          <button type="submit" className="btn btn-primary">
-            Sign in
+          <button type="submit" className="btn btn-primary" disabled={pending}>
+            {pending ? 'Signing in…' : 'Sign in'}
           </button>
           <p className="small muted" style={{ textAlign: 'center' }}>
             No account?{' '}
@@ -66,10 +78,6 @@ export function SignInPage() {
             </Link>
           </p>
         </form>
-        <p className="small faint demo-hint">
-          Demo: any password works. Try avi@example.com (Platform Admin), maya@example.com (Building Admin) or
-          noa@example.com (Unassigned).
-        </p>
       </div>
     </div>
   )

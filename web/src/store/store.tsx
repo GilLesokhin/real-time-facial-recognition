@@ -1,11 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react'
+import { useAuth } from './auth'
 import { seedBuildings, seedEvents, seedPeople, seedTerminals, seedUsers } from '../data/seed'
 import { newId } from '../lib/format'
 import type { AccessEvent, AccessResult, Building, Person, Terminal, User, UserRole } from '../types'
 
 /**
- * Front-end only: all data lives in this store and in localStorage.
- * Each action maps to one backend endpoint (noted beside it).
+ * Mock data: everything except sign-in lives in this store and in localStorage.
+ * Each action maps to one backend endpoint (noted beside it). Sign-in is real: see ./auth.
  */
 
 interface State {
@@ -14,16 +15,11 @@ interface State {
   terminals: Terminal[]
   people: Person[]
   events: AccessEvent[]
-  /** Demo sign-in: stands in for POST /auth/login. */
-  /** null when signed out. */
-  currentUserId: string | null
   currentBuildingId: string | null
 }
 
 type Action =
-  | { type: 'signInAs'; userId: string | null }
   | { type: 'selectBuilding'; buildingId: string | null }
-  | { type: 'signUp'; user: User }
   | { type: 'updateUser'; user: User }
   | { type: 'removeUser'; id: string }
   | { type: 'addBuilding'; building: Building }
@@ -38,7 +34,7 @@ type Action =
   | { type: 'logEvent'; event: AccessEvent }
   | { type: 'reset' }
 
-const STORAGE_KEY = 'building-entry-demo-v4'
+const STORAGE_KEY = 'building-entry-demo-v6'
 
 const initialState = (): State => ({
   users: seedUsers,
@@ -46,7 +42,6 @@ const initialState = (): State => ({
   terminals: seedTerminals,
   people: seedPeople,
   events: seedEvents,
-  currentUserId: 'u-maya',
   currentBuildingId: 'b-north',
 })
 
@@ -60,41 +55,19 @@ const loadState = (): State => {
   return initialState()
 }
 
-/** Unassigned users can't use the panel. */
-const canSignIn = (user: User | undefined) => !!user && user.role !== 'unassigned'
-
-const buildingsFor = (state: State, user: User | undefined) => {
+const buildingsFor = (state: State, user: User | null) => {
   if (!user || user.role === 'unassigned') return []
   if (user.role === 'platform_admin') return state.buildings
-  return state.buildings.filter((b) => user.buildingIds.includes(b.id))
-}
-
-/** Keeps the signed-in user and selected building valid after any change. */
-function settle(state: State): State {
-  const current = state.users.find((u) => u.id === state.currentUserId)
-  // Deleted or unassigned users are signed out.
-  const user = canSignIn(current) ? current : undefined
-  const visible = buildingsFor(state, user)
-  const buildingId = visible.some((b) => b.id === state.currentBuildingId)
-    ? state.currentBuildingId
-    : (visible[0]?.id ?? null)
-  const userId = user?.id ?? null
-  return userId === state.currentUserId && buildingId === state.currentBuildingId
-    ? state
-    : { ...state, currentUserId: userId, currentBuildingId: buildingId }
+  return state.buildings.filter((b) => user.building_ids.includes(b.id))
 }
 
 const replace = <T extends { id: string }>(list: T[], item: T) => list.map((x) => (x.id === item.id ? item : x))
 
 function reduce(state: State, action: Action): State {
   switch (action.type) {
-    case 'signInAs':
-      return { ...state, currentUserId: action.userId }
     case 'selectBuilding':
       return { ...state, currentBuildingId: action.buildingId }
 
-    case 'signUp':
-      return { ...state, users: [...state.users, action.user] }
     case 'updateUser':
       return { ...state, users: replace(state.users, action.user) }
     case 'removeUser':
@@ -108,11 +81,11 @@ function reduce(state: State, action: Action): State {
       return {
         ...state,
         buildings: state.buildings.filter((b) => b.id !== action.id),
-        terminals: state.terminals.filter((t) => t.buildingId !== action.id),
-        people: state.people.filter((p) => p.buildingId !== action.id),
-        events: state.events.filter((e) => e.buildingId !== action.id),
+        terminals: state.terminals.filter((t) => t.building_id !== action.id),
+        people: state.people.filter((p) => p.building_id !== action.id),
+        events: state.events.filter((e) => e.building_id !== action.id),
         users: state.users.map((u) =>
-          u.buildingIds.includes(action.id) ? { ...u, buildingIds: u.buildingIds.filter((id) => id !== action.id) } : u,
+          u.building_ids.includes(action.id) ? { ...u, building_ids: u.building_ids.filter((id) => id !== action.id) } : u,
         ),
       }
 
@@ -137,10 +110,9 @@ function reduce(state: State, action: Action): State {
   }
 }
 
-const reducer = (state: State, action: Action) => settle(reduce(state, action))
-
 function useStoreValue() {
-  const [state, dispatch] = useReducer(reducer, undefined, () => settle(loadState()))
+  const { user: currentUser } = useAuth()
+  const [state, dispatch] = useReducer(reduce, undefined, loadState)
 
   useEffect(() => {
     try {
@@ -151,47 +123,24 @@ function useStoreValue() {
   }, [state])
 
   return useMemo(() => {
-    const currentUser = state.users.find((u) => u.id === state.currentUserId)
     const visibleBuildings = buildingsFor(state, currentUser)
-    const currentBuilding = visibleBuildings.find((b) => b.id === state.currentBuildingId) ?? null
+    // Falls back to the first visible building if the selected one was removed or isn't visible.
+    const currentBuilding = visibleBuildings.find((b) => b.id === state.currentBuildingId) ?? visibleBuildings[0] ?? null
 
     return {
       state,
       currentUser,
-      currentUserId: state.currentUserId,
       isPlatformAdmin: currentUser?.role === 'platform_admin',
-      /** Approved users, for the demo "signed in as" switcher. */
-      signInOptions: state.users.filter(canSignIn),
       visibleBuildings,
       currentBuilding,
 
-      signInAs: (userId: string) => dispatch({ type: 'signInAs', userId }),
-      /**
-       * POST /auth/login. The demo checks the email only: any password works.
-       * Returns why sign-in failed, or null on success.
-       */
-      signIn: (email: string): 'unknown' | 'unassigned' | null => {
-        const user = state.users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase())
-        if (!user) return 'unknown'
-        if (!canSignIn(user)) return 'unassigned'
-        dispatch({ type: 'signInAs', userId: user.id })
-        return null
-      },
-      // POST /auth/logout
-      signOut: () => dispatch({ type: 'signInAs', userId: null }),
       selectBuilding: (buildingId: string | null) => dispatch({ type: 'selectBuilding', buildingId }),
 
-      // POST /auth/signup: creates an unassigned user with no access
-      signUp: (name: string, email: string) =>
-        dispatch({
-          type: 'signUp',
-          user: { id: newId('u'), name, email, role: 'unassigned', buildingIds: [], createdAt: new Date().toISOString() },
-        }),
       // PATCH /users/:id (role + buildings), DELETE /users/:id. Platform Admin only.
       setUserAccess: (user: User, role: UserRole, buildingIds: string[]) =>
         dispatch({
           type: 'updateUser',
-          user: { ...user, role, buildingIds: role === 'building_admin' ? buildingIds : [] },
+          user: { ...user, role, building_ids: role === 'building_admin' ? buildingIds : [] },
         }),
       removeUser: (id: string) => dispatch({ type: 'removeUser', id }),
 
@@ -203,13 +152,13 @@ function useStoreValue() {
 
       // POST /buildings/:id/terminals, PATCH /terminals/:id, DELETE /terminals/:id
       addTerminal: (buildingId: string, name: string) =>
-        dispatch({ type: 'addTerminal', terminal: { id: newId('t'), buildingId, name } }),
+        dispatch({ type: 'addTerminal', terminal: { id: newId('t'), building_id: buildingId, name } }),
       updateTerminal: (terminal: Terminal) => dispatch({ type: 'updateTerminal', terminal }),
       removeTerminal: (id: string) => dispatch({ type: 'removeTerminal', id }),
 
       // POST /buildings/:id/people, PATCH /people/:id, DELETE /people/:id
-      addPerson: (input: Omit<Person, 'id' | 'createdAt'>) =>
-        dispatch({ type: 'addPerson', person: { ...input, id: newId('p'), createdAt: new Date().toISOString() } }),
+      addPerson: (input: Omit<Person, 'id' | 'created_at'>) =>
+        dispatch({ type: 'addPerson', person: { ...input, id: newId('p'), created_at: new Date().toISOString() } }),
       updatePerson: (person: Person) => dispatch({ type: 'updatePerson', person }),
       removePerson: (id: string) => dispatch({ type: 'removePerson', id }),
 
@@ -219,17 +168,17 @@ function useStoreValue() {
           type: 'logEvent',
           event: {
             id: newId('ev'),
-            buildingId: terminal.buildingId,
-            terminalId: terminal.id,
+            building_id: terminal.building_id,
+            terminal_id: terminal.id,
             result,
-            personId,
+            person_id: personId,
             at: new Date().toISOString(),
           },
         }),
 
       resetDemo: () => dispatch({ type: 'reset' }),
     }
-  }, [state])
+  }, [state, currentUser])
 }
 
 type Store = ReturnType<typeof useStoreValue>

@@ -11,11 +11,11 @@ export function AccessLogPage() {
 
   if (!currentBuilding) return <p className="card empty muted">No building selected.</p>
 
-  const terminals = state.terminals.filter((t) => t.buildingId === currentBuilding.id)
+  const terminals = state.terminals.filter((t) => t.building_id === currentBuilding.id)
   const events = state.events.filter(
     (ev) =>
-      ev.buildingId === currentBuilding.id &&
-      (!terminalFilter || ev.terminalId === terminalFilter) &&
+      ev.building_id === currentBuilding.id &&
+      (!terminalFilter || ev.terminal_id === terminalFilter) &&
       (!resultFilter || ev.result === resultFilter),
   )
 
@@ -69,8 +69,8 @@ export function AccessLogPage() {
             </thead>
             <tbody>
               {events.map((ev) => {
-                const person = ev.personId ? state.people.find((p) => p.id === ev.personId) : undefined
-                const terminal = state.terminals.find((t) => t.id === ev.terminalId)
+                const person = ev.person_id ? state.people.find((p) => p.id === ev.person_id) : undefined
+                const terminal = state.terminals.find((t) => t.id === ev.terminal_id)
                 return (
                   <tr key={ev.id}>
                     <td className="muted">{formatDateTime(ev.at)}</td>
@@ -81,7 +81,7 @@ export function AccessLogPage() {
                           {person.name}
                         </div>
                       ) : (
-                        <span className="faint">{ev.personId ? 'Removed person' : 'Unknown face'}</span>
+                        <span className="faint">{ev.person_id ? 'Removed person' : 'Unknown face'}</span>
                       )}
                     </td>
                     <td className="muted">{terminal?.name ?? 'Removed terminal'}</td>

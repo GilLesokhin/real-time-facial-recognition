@@ -16,7 +16,7 @@ export function PeoplePage() {
     return <p className="card empty muted">No building selected.</p>
   }
 
-  const people = state.people.filter((p) => p.buildingId === currentBuilding.id)
+  const people = state.people.filter((p) => p.building_id === currentBuilding.id)
   const q = query.trim().toLowerCase()
   const shown = q ? people.filter((p) => `${p.name} ${p.unit}`.toLowerCase().includes(q)) : people
 
@@ -67,7 +67,7 @@ export function PeoplePage() {
                   </td>
                   <td className="muted">{p.unit}</td>
                   <td className={p.photo ? 'muted' : 'faint'}>{p.photo ? 'On file' : 'Missing'}</td>
-                  <td className="muted">{formatDate(p.createdAt)}</td>
+                  <td className="muted">{formatDate(p.created_at)}</td>
                   <td>
                     <div className="row-actions">
                       <Link to={`/admin/people/${p.id}/edit`} className="icon-btn" aria-label={`Edit ${p.name}`}>

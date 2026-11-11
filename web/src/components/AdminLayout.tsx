@@ -1,23 +1,16 @@
 import { Building2, History, LogOut, MonitorSmartphone, RotateCcw, ShieldCheck, Users } from 'lucide-react'
 import { Navigate, NavLink, Outlet } from 'react-router-dom'
+import { useAuth } from '../store/auth'
 import { useStore } from '../store/store'
 import { Logo } from './Logo'
 
 export function AdminLayout() {
-  const {
-    currentUser,
-    currentUserId,
-    signInOptions,
-    visibleBuildings,
-    currentBuilding,
-    isPlatformAdmin,
-    signInAs,
-    selectBuilding,
-    resetDemo,
-    signOut,
-  } = useStore()
+  const { status, user: currentUser, signOut } = useAuth()
+  const { visibleBuildings, currentBuilding, isPlatformAdmin, selectBuilding, resetDemo } = useStore()
 
   const navClass = ({ isActive }: { isActive: boolean }) => `nav-link${isActive ? ' active' : ''}`
+  // Still asking the API whether the session cookie is valid: don't flash the sign-in page.
+  if (status === 'loading') return null
   if (!currentUser) return <Navigate to="/signin" replace />
 
   return (
@@ -78,16 +71,6 @@ export function AdminLayout() {
               <LogOut size={16} />
             </button>
           </div>
-          <label className="field">
-            <span className="label">Demo · switch user</span>
-            <select className="select" value={currentUserId ?? ''} onChange={(e) => signInAs(e.target.value)}>
-              {signInOptions.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
-          </label>
           <button type="button" className="btn btn-sm" onClick={resetDemo}>
             <RotateCcw size={14} /> Reset demo data
           </button>

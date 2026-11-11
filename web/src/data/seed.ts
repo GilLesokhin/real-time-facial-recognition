@@ -1,11 +1,11 @@
 import type { AccessEvent, Building, Person, Terminal, User } from '../types'
 
 export const seedUsers: User[] = [
-  { id: 'u-avi', name: 'Avi Rosen', email: 'avi@example.com', role: 'platform_admin', buildingIds: [], createdAt: '2026-10-01T10:00:00Z' },
-  { id: 'u-maya', name: 'Maya Cohen', email: 'maya@example.com', role: 'building_admin', buildingIds: ['b-north'], createdAt: '2026-10-05T10:00:00Z' },
-  { id: 'u-eli', name: 'Eli Barak', email: 'eli@example.com', role: 'building_admin', buildingIds: ['b-harbor', 'b-cedar'], createdAt: '2026-10-07T10:00:00Z' },
-  { id: 'u-noa', name: 'Noa Stern', email: 'noa@example.com', role: 'unassigned', buildingIds: [], createdAt: '2026-11-09T18:20:00Z' },
-  { id: 'u-dan', name: 'Dan Kaplan', email: 'dan@example.com', role: 'unassigned', buildingIds: [], createdAt: '2026-11-08T09:10:00Z' },
+  { id: 'u-avi', name: 'Avi Rosen', email: 'avi@example.com', role: 'platform_admin', building_ids: [], created_at: '2026-10-01T10:00:00Z' },
+  { id: 'u-maya', name: 'Maya Cohen', email: 'maya@example.com', role: 'building_admin', building_ids: ['b-north'], created_at: '2026-10-05T10:00:00Z' },
+  { id: 'u-eli', name: 'Eli Barak', email: 'eli@example.com', role: 'building_admin', building_ids: ['b-harbor', 'b-cedar'], created_at: '2026-10-07T10:00:00Z' },
+  { id: 'u-noa', name: 'Noa Stern', email: 'noa@example.com', role: 'unassigned', building_ids: [], created_at: '2026-11-09T18:20:00Z' },
+  { id: 'u-dan', name: 'Dan Kaplan', email: 'dan@example.com', role: 'unassigned', building_ids: [], created_at: '2026-11-08T09:10:00Z' },
 ]
 
 export const seedBuildings: Building[] = [
@@ -15,22 +15,22 @@ export const seedBuildings: Building[] = [
 ]
 
 export const seedTerminals: Terminal[] = [
-  { id: 't-north-lobby', buildingId: 'b-north', name: 'Main lobby' },
-  { id: 't-north-garage', buildingId: 'b-north', name: 'Garage' },
-  { id: 't-north-back', buildingId: 'b-north', name: 'Back door' },
-  { id: 't-harbor-lobby', buildingId: 'b-harbor', name: 'Main lobby' },
-  { id: 't-harbor-pool', buildingId: 'b-harbor', name: 'Pool gate' },
-  { id: 't-cedar-lobby', buildingId: 'b-cedar', name: 'Main lobby' },
-  { id: 't-cedar-garage', buildingId: 'b-cedar', name: 'Garage' },
+  { id: 't-north-lobby', building_id: 'b-north', name: 'Main lobby' },
+  { id: 't-north-garage', building_id: 'b-north', name: 'Garage' },
+  { id: 't-north-back', building_id: 'b-north', name: 'Back door' },
+  { id: 't-harbor-lobby', building_id: 'b-harbor', name: 'Main lobby' },
+  { id: 't-harbor-pool', building_id: 'b-harbor', name: 'Pool gate' },
+  { id: 't-cedar-lobby', building_id: 'b-cedar', name: 'Main lobby' },
+  { id: 't-cedar-garage', building_id: 'b-cedar', name: 'Garage' },
 ]
 
 const person = (
   id: string,
-  buildingId: string,
+  building_id: string,
   name: string,
   unit: string,
-  createdAt: string,
-): Person => ({ id, buildingId, name, unit, photo: null, createdAt })
+  created_at: string,
+): Person => ({ id, building_id, name, unit, photo: null, created_at })
 
 export const seedPeople: Person[] = [
   person('p-1', 'b-north', 'Dana Levi', 'Apt 4B', '2026-11-02T10:00:00Z'),
@@ -47,11 +47,11 @@ export const seedPeople: Person[] = [
 ]
 
 export const seedEvents: AccessEvent[] = [
-  { id: 'ev-1', buildingId: 'b-north', terminalId: 't-north-lobby', result: 'granted', personId: 'p-1', at: '2026-11-09T16:04:12Z' },
-  { id: 'ev-2', buildingId: 'b-north', terminalId: 't-north-garage', result: 'granted', personId: 'p-2', at: '2026-11-09T15:58:40Z' },
-  { id: 'ev-3', buildingId: 'b-north', terminalId: 't-north-lobby', result: 'denied', personId: null, at: '2026-11-09T15:41:05Z' },
-  { id: 'ev-4', buildingId: 'b-north', terminalId: 't-north-back', result: 'granted', personId: 'p-3', at: '2026-11-09T15:22:19Z' },
-  { id: 'ev-5', buildingId: 'b-north', terminalId: 't-north-lobby', result: 'granted', personId: 'p-4', at: '2026-11-09T14:55:02Z' },
-  { id: 'ev-6', buildingId: 'b-north', terminalId: 't-north-garage', result: 'denied', personId: null, at: '2026-11-09T14:30:47Z' },
-  { id: 'ev-7', buildingId: 'b-harbor', terminalId: 't-harbor-lobby', result: 'granted', personId: 'p-9', at: '2026-11-09T13:12:33Z' },
+  { id: 'ev-1', building_id: 'b-north', terminal_id: 't-north-lobby', result: 'granted', person_id: 'p-1', at: '2026-11-09T16:04:12Z' },
+  { id: 'ev-2', building_id: 'b-north', terminal_id: 't-north-garage', result: 'granted', person_id: 'p-2', at: '2026-11-09T15:58:40Z' },
+  { id: 'ev-3', building_id: 'b-north', terminal_id: 't-north-lobby', result: 'denied', person_id: null, at: '2026-11-09T15:41:05Z' },
+  { id: 'ev-4', building_id: 'b-north', terminal_id: 't-north-back', result: 'granted', person_id: 'p-3', at: '2026-11-09T15:22:19Z' },
+  { id: 'ev-5', building_id: 'b-north', terminal_id: 't-north-lobby', result: 'granted', person_id: 'p-4', at: '2026-11-09T14:55:02Z' },
+  { id: 'ev-6', building_id: 'b-north', terminal_id: 't-north-garage', result: 'denied', person_id: null, at: '2026-11-09T14:30:47Z' },
+  { id: 'ev-7', building_id: 'b-harbor', terminal_id: 't-harbor-lobby', result: 'granted', person_id: 'p-9', at: '2026-11-09T13:12:33Z' },
 ]

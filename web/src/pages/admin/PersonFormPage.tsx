@@ -16,7 +16,7 @@ export function PersonFormPage() {
   const [photo, setPhoto] = useState<string | null>(existing?.photo ?? null)
   const [error, setError] = useState<string | null>(null)
 
-  const building = existing ? state.buildings.find((b) => b.id === existing.buildingId) : currentBuilding
+  const building = existing ? state.buildings.find((b) => b.id === existing.building_id) : currentBuilding
   const close = () => navigate('/admin/people')
 
   if ((id && !existing) || !building) {
@@ -33,7 +33,7 @@ export function PersonFormPage() {
     if (!photo) return setError('Add a face photo. The terminal matches against it.')
     const fields = { name: name.trim(), unit: unit.trim(), photo }
     if (existing) updatePerson({ ...existing, ...fields })
-    else addPerson({ ...fields, buildingId: building.id })
+    else addPerson({ ...fields, building_id: building.id })
     close()
   }
 

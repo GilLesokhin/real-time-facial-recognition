@@ -7,17 +7,17 @@ export interface Building {
 /** A door with a camera and screen. One terminal per entry point. */
 export interface Terminal {
   id: string
-  buildingId: string
+  building_id: string
   name: string
 }
 
 export interface Person {
   id: string
-  buildingId: string
+  building_id: string
   name: string
   unit: string
   photo: string | null
-  createdAt: string
+  created_at: string
 }
 
 /** Someone who signs in to the admin panel. Separate from the people who walk through the door. */
@@ -29,17 +29,17 @@ export interface User {
   email: string
   role: UserRole
   /** Buildings a Building Admin manages. Empty for unassigned users and Platform Admins (who see all). */
-  buildingIds: string[]
-  createdAt: string
+  building_ids: string[]
+  created_at: string
 }
 
 export type AccessResult = 'granted' | 'denied'
 
 export interface AccessEvent {
   id: string
-  buildingId: string
-  terminalId: string
+  building_id: string
+  terminal_id: string
   result: AccessResult
-  personId: string | null
+  person_id: string | null
   at: string
 }
