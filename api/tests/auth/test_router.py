@@ -1,5 +1,3 @@
-"""The /auth endpoints, checked against the contract in GIL-50."""
-
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 

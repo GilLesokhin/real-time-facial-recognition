@@ -9,8 +9,7 @@ export class ApiError extends Error {
 }
 
 /**
- * Calls the Python API through the Vite proxy (`/api` → http://localhost:8000).
- * The browser sends the session cookie by itself; this code never sees it.
+ * Calls the API through the Vite proxy (`/api` → http://localhost:8000).
  */
 export async function api<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
   let res: Response

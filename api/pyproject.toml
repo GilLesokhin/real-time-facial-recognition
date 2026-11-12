@@ -11,7 +11,6 @@ dependencies = [
     "pydantic-settings>=2.6",
     # Signs the session cookie (used by Starlette's SessionMiddleware).
     "itsdangerous>=2.2",
-    # Hashes passwords with Argon2.
     "pwdlib[argon2]>=0.2.1",
 ]
 

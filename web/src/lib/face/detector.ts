@@ -1,6 +1,5 @@
 /**
  * Face detection in the browser with MediaPipe Face Detector (BlazeFace short-range).
- * Plain TypeScript, no React. The browser only *finds* faces; the server recognizes them.
  *
  * All files are bundled by Vite: `?url` imports give each file's served URL and copy it into the build.
  * The WASM comes from the npm package, the model is committed next to this file. No CDN, no setup step.
@@ -64,7 +63,7 @@ export const DEFAULT_SETTINGS: DetectionSettings = {
   windowMs: 1000,
   minFacePx: 128, // 112 px model input plus some headroom
   minSteady: 0.3, // 3 of 10 frames
-  cropSize: 256, // Revisit when the embedding model is chosen (GIL-57).
+  cropSize: 256,
   cropMargin: 1.6,
   jpegQuality: 0.85,
 }
@@ -78,8 +77,7 @@ export const isCloseEnough = (d: Detection, minFacePx: number) => !!d.boundingBo
 
 /**
  * The face to act on: highest score, then the biggest (closest to the door).
- * TODO(later): with two people at the door, check each face (one request per face, or one request
- * with every face's crop). Needs matching faces across frames, and a tailgating rule for the door.
+ * TODO: check every face at the door (GIL-68).
  */
 export function bestDetection(detections: Detection[]): Detection | null {
   let best: Detection | null = null

@@ -1,5 +1,3 @@
-"""Test setup: a separate database, built by the real migrations, with every test rolled back."""
-
 from collections.abc import Callable, Iterator
 from pathlib import Path
 

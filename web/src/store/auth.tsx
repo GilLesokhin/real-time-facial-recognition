@@ -2,10 +2,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api } from '../lib/api'
 import type { User } from '../types'
 
-/**
- * Who is signed in, backed by the real API (/auth/*).
- * The rest of the app's data still comes from the mock store until those endpoints exist.
- */
 type AuthStatus = 'loading' | 'signedIn' | 'signedOut'
 
 function useAuthValue() {

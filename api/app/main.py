@@ -6,7 +6,6 @@ from app.core.config import settings
 
 app = FastAPI(title="Building Entry API")
 
-# Signed cookie holding {"user_id": ...}. httpOnly by default, so JavaScript can't read it.
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.SECRET_KEY,

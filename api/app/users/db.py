@@ -1,5 +1,3 @@
-"""Database queries for users. Never commits: the service does."""
-
 import uuid
 
 from sqlalchemy import select

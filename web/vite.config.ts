@@ -5,8 +5,7 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   server: {
-    // The browser only talks to Vite: /api/auth/me goes to the API as /auth/me.
-    // One origin, so the session cookie just works and the API needs no CORS setup.
+    // One origin for the browser, so the session cookie works without CORS.
     proxy: {
       '/api': {
         target: 'http://localhost:8000',

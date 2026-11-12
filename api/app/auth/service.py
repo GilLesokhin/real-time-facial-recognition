@@ -1,5 +1,3 @@
-"""Sign-up and sign-in rules. Commits its own writes; knows nothing about cookies."""
-
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 

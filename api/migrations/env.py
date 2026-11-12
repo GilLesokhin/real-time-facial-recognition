@@ -1,5 +1,3 @@
-"""Runs migrations. `uv run alembic upgrade head` uses DATABASE_URL; the tests pass their own URL."""
-
 from logging.config import fileConfig
 
 from alembic import context
@@ -13,8 +11,7 @@ config = context.config
 if config.config_file_name:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
-# Compared against the database by `alembic revision --autogenerate`.
-# Import each new feature's models.py above so its tables are included.
+# Import each feature's models.py above so autogenerate sees its tables.
 target_metadata = Base.metadata
 
 url = config.attributes.get("database_url", settings.DATABASE_URL)

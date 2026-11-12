@@ -30,7 +30,6 @@ export function AdminLayout() {
             </select>
           </label>
         ) : (
-          // Only one building (or none): show it as plain text, nothing to choose.
           <div className="field">
             <span className="label">Building</span>
             <span className="building-name">{currentBuilding?.name ?? 'No buildings'}</span>

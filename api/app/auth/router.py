@@ -17,7 +17,6 @@ def signup(body: SignupIn, session: SessionDep):
 
 @router.post("/login", response_model=UserOut)
 def login(body: LoginIn, request: Request, session: SessionDep):
-    """Check the password, then put the user id in the signed session cookie."""
     user = service.log_in(session, body.email, body.password)
     request.session.clear()
     request.session[SESSION_USER_ID] = str(user.id)
