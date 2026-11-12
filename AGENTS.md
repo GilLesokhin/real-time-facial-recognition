@@ -4,7 +4,7 @@ Face-recognition entry for multiple buildings. `api/` is the FastAPI + Postgres 
 
 Plan, tickets and design docs: Linear project "Building Entry",
 https://linear.app/gil-lesokhin/project/building-entry-debea10898b0
-Before building a feature, read its ticket and the "Data model and API" doc.
+Before building a feature, read its ticket and the "Data model", "Backend API" and "Web URLs" docs.
 
 ## How we work
 
