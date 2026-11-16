@@ -1,9 +1,9 @@
-# Building Entry
+# Real Time Facial Recognition
 
 Face-recognition entry for multiple buildings. `api/` is the FastAPI + Postgres backend and `web/` is the React admin panel and door terminal. Setup and commands live in each folder's README.
 
-Plan, tickets and design docs: Linear project "Building Entry",
-https://linear.app/gil-lesokhin/project/building-entry-debea10898b0
+Plan, tickets and design docs: Linear project "Real Time Facial Recognition",
+https://linear.app/gil-lesokhin/project/real-time-facial-recognition-debea10898b0
 Before building a feature, read its ticket and the "Data model", "Backend API" and "Web URLs" docs.
 
 ## How we work

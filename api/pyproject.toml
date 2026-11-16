@@ -1,7 +1,7 @@
 [project]
 name = "building-entry-api"
 version = "0.1.0"
-description = "Backend for Building Entry"
+description = "Backend for Real Time Facial Recognition"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.1",

@@ -4,7 +4,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.auth.router import router as auth_router
 from app.core.config import settings
 
-app = FastAPI(title="Building Entry API")
+app = FastAPI(title="Real Time Facial Recognition API")
 
 app.add_middleware(
     SessionMiddleware,

@@ -1,6 +1,6 @@
-# Building Entry: front-end mockup
+# Real Time Facial Recognition: front-end mockup
 
-A React + TypeScript front end for the face-recognition building entry system. **Sign-in is real**: sign-up, sign-in, sign-out and "who am I" go to the Python API (`api/`). Everything else (buildings, people, terminals, the access log, the Admins page) is still mock data saved to `localStorage`, until those endpoints exist.
+A React + TypeScript front end for the face-recognition entry system. **Sign-in is real**: sign-up, sign-in, sign-out and "who am I" go to the Python API (`api/`). Everything else (buildings, people, terminals, the access log, the Admins page) is still mock data saved to `localStorage`, until those endpoints exist.
 
 ## Run it
 
@@ -13,13 +13,11 @@ npm run dev
 
 Open http://localhost:5173. Vite forwards `/api/*` to the API (see `vite.config.ts`), so the browser sees one origin and the session cookie works without CORS.
 
-Sign in as the Platform Admin that the API's migrations create from `PLATFORM_ADMIN_EMAIL` and `PLATFORM_ADMIN_PASSWORD` in `api/.env`. New accounts start Unassigned and can't sign in, and the Admins page doesn't use the API yet, so for now other accounts get a role in the database:
+Sign in as the Platform Admin you create with `uv run python -m app.users.create_admin`, run from `api/`. New accounts start Unassigned and can't sign in, and the Admins page doesn't use the API yet, so for now other accounts get a role in the database:
 
 ```sql
 UPDATE users SET role = 'building_admin' WHERE email = 'someone@example.com';
 ```
-
-A Building Admin from the API has no buildings yet, so they see "No buildings". A Platform Admin sees all the mock buildings.
 
 "Reset demo data" in the sidebar restores the mock data.
 
@@ -27,13 +25,15 @@ A Building Admin from the API has no buildings yet, so they see "No buildings". 
 
 | Route | Screen |
 | -- | -- |
-| `/signin`, `/signup` | Sign in, and sign up (new accounts start Unassigned) |
-| `/admin/people` | People allowed into the building, with face photos |
-| `/admin/terminals` | Terminals (one per door). Open one in a new tab |
-| `/admin/access-log` | Every check, filtered by terminal and result |
-| `/admin/buildings` | Platform Admin: add, edit and delete buildings |
-| `/admin/admins` | Platform Admin: give users a role and buildings |
-| `/terminal/:id` | The door screen: camera, face box, granted or denied |
+| `/` | Welcome page with sign-in and sign-up |
+| `/login`, `/signup` | Sign in, and sign up (new accounts start Unassigned) |
+| `/buildings` | Buildings. Platform Admins can add, edit and delete them |
+| `/users` | Platform Admin: give users a role and buildings |
+| `/buildings/:buildingId/terminals` | Terminals (one per door). This is where `/buildings/:buildingId` opens |
+| `/buildings/:buildingId/people` | People allowed in, with face photos (`/new`, `/:id/edit`) |
+| `/buildings/:buildingId/access-log` | Every check, filtered by terminal and result |
+| `/terminal/:terminalId` | The door screen: camera, face box, granted or denied |
+| Anything else | 404 page |
 
 The terminal has demo controls to choose who the camera "sees", since face matching needs the backend.
 

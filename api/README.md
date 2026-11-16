@@ -1,4 +1,4 @@
-# Building Entry: API
+# Real Time Facial Recognition: API
 
 The Python backend: FastAPI, SQLAlchemy, Alembic and Postgres, managed with [uv](https://docs.astral.sh/uv/).
 
