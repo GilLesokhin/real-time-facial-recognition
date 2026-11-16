@@ -6,7 +6,7 @@ Thumbs.db
 ~$*
 
 # Claude Code local settings
-*.local.json
+.claude/
 
 # Node
 node_modules/
