@@ -4,17 +4,14 @@ import { Link, Outlet } from 'react-router-dom'
 import { Avatar } from '../../components/Avatar'
 import { ConfirmModal } from '../../components/ConfirmModal'
 import { formatDate } from '../../lib/format'
-import { useStore } from '../../store/store'
+import { useCurrentBuilding, useStore } from '../../store/store'
 import type { Person } from '../../types'
 
 export function PeoplePage() {
-  const { state, currentBuilding, removePerson } = useStore()
+  const { state, removePerson } = useStore()
+  const currentBuilding = useCurrentBuilding()
   const [query, setQuery] = useState('')
   const [toRemove, setToRemove] = useState<Person | null>(null)
-
-  if (!currentBuilding) {
-    return <p className="card empty muted">No building selected.</p>
-  }
 
   const people = state.people.filter((p) => p.building_id === currentBuilding.id)
   const q = query.trim().toLowerCase()
@@ -34,7 +31,7 @@ export function PeoplePage() {
             <span className="visually-hidden">Search people</span>
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name or unit" />
           </label>
-          <Link to="/admin/people/new" className="btn btn-primary">
+          <Link to="new" className="btn btn-primary">
             <Plus size={16} /> Add person
           </Link>
         </div>
@@ -70,7 +67,7 @@ export function PeoplePage() {
                   <td className="muted">{formatDate(p.created_at)}</td>
                   <td>
                     <div className="row-actions">
-                      <Link to={`/admin/people/${p.id}/edit`} className="icon-btn" aria-label={`Edit ${p.name}`}>
+                      <Link to={`${p.id}/edit`} className="icon-btn" aria-label={`Edit ${p.name}`}>
                         <Pencil size={16} />
                       </Link>
                                             <button

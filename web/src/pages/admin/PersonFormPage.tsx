@@ -2,27 +2,27 @@ import { useState, type SubmitEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Modal } from '../../components/Modal'
 import { PhotoPicker } from '../../components/PhotoPicker'
-import { useStore } from '../../store/store'
+import { useCurrentBuilding, useStore } from '../../store/store'
 
 /** Add / edit person, shown as a popup over the People list (nested route). */
 export function PersonFormPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { state, currentBuilding, addPerson, updatePerson } = useStore()
-  const existing = id ? state.people.find((p) => p.id === id) : undefined
+  const { state, addPerson, updatePerson } = useStore()
+  const building = useCurrentBuilding()
+  const existing = id ? state.people.find((p) => p.id === id && p.building_id === building.id) : undefined
 
   const [name, setName] = useState(existing?.name ?? '')
   const [unit, setUnit] = useState(existing?.unit ?? '')
   const [photo, setPhoto] = useState<string | null>(existing?.photo ?? null)
   const [error, setError] = useState<string | null>(null)
 
-  const building = existing ? state.buildings.find((b) => b.id === existing.building_id) : currentBuilding
-  const close = () => navigate('/admin/people')
+  const close = () => navigate(`/buildings/${building.id}/people`)
 
-  if ((id && !existing) || !building) {
+  if (id && !existing) {
     return (
       <Modal title="Person" onClose={close}>
-        <p className="muted">{id ? 'That person no longer exists.' : 'Select a building first.'}</p>
+        <p className="muted">That person no longer exists.</p>
       </Modal>
     )
   }

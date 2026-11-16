@@ -45,7 +45,7 @@ export function SignUpPage() {
               Your account is created. A Platform Admin will give you access to your buildings, and then you can sign
               in.
             </p>
-            <Link to="/signin" className="btn">
+            <Link to="/login" className="btn">
               Back to sign in
             </Link>
           </>
@@ -89,7 +89,7 @@ export function SignUpPage() {
             </button>
             <p className="small muted" style={{ textAlign: 'center' }}>
               Already have an account?{' '}
-              <Link to="/signin" className="text-link">
+              <Link to="/login" className="text-link">
                 Sign in
               </Link>
             </p>

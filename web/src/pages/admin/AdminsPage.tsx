@@ -23,7 +23,7 @@ export function AdminsPage() {
   const [editing, setEditing] = useState<User | null>(null)
   const [deleting, setDeleting] = useState<User | null>(null)
 
-  if (!isPlatformAdmin) return <Navigate to="/admin/people" replace />
+  if (!isPlatformAdmin) return <Navigate to="/" replace />
 
   const unassignedCount = state.users.filter((u) => u.role === 'unassigned').length
   const q = query.trim().toLowerCase()

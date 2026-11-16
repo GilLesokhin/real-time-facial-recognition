@@ -1,8 +1,9 @@
 import { useState, type SubmitEvent } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { ApiError } from '../lib/api'
 import { useAuth } from '../store/auth'
+import { useStore } from '../store/store'
 
 const errorMessage = (err: unknown) => {
   if (err instanceof ApiError && err.status === 401) return 'Wrong email or password.'
@@ -14,13 +15,14 @@ const errorMessage = (err: unknown) => {
 
 export function SignInPage() {
   const { status, signIn } = useAuth()
-  const navigate = useNavigate()
+  const { homePath } = useStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
-  if (status === 'signedIn') return <Navigate to="/admin/people" replace />
+  // Also runs right after a successful sign-in.
+  if (status === 'signedIn') return <Navigate to={homePath} replace />
 
   const onSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -29,7 +31,6 @@ export function SignInPage() {
     setError(null)
     try {
       await signIn(email.trim(), password)
-      navigate('/admin/people')
     } catch (err) {
       setError(errorMessage(err))
     } finally {

@@ -136,8 +136,8 @@ export function TerminalPage() {
     return (
       <div className="center-page">
         <p className="muted">This terminal no longer exists.</p>
-        <Link to="/admin/terminals" className="btn">
-          All terminals
+        <Link to="/" className="btn">
+          Home
         </Link>
       </div>
     )

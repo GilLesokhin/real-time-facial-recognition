@@ -3,7 +3,7 @@ import { ExternalLink, MonitorSmartphone, Pencil, Plus, Trash2 } from 'lucide-re
 import { ConfirmModal } from '../../components/ConfirmModal'
 import { Modal } from '../../components/Modal'
 import { formatDateTime } from '../../lib/format'
-import { useStore } from '../../store/store'
+import { useCurrentBuilding, useStore } from '../../store/store'
 import type { Terminal } from '../../types'
 
 /** Each terminal opens in its own tab (reused if already open), like a separate device at the door. */
@@ -12,11 +12,10 @@ const openTerminal = (terminal: Terminal) => window.open(`/terminal/${terminal.i
 type Dialog = { kind: 'add' } | { kind: 'edit' | 'remove'; terminal: Terminal }
 
 export function TerminalsPage() {
-  const { state, currentBuilding, removeTerminal } = useStore()
+  const { state, removeTerminal } = useStore()
+  const currentBuilding = useCurrentBuilding()
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const close = () => setDialog(null)
-
-  if (!currentBuilding) return <p className="card empty muted">No building selected.</p>
 
   const terminals = state.terminals.filter((t) => t.building_id === currentBuilding.id)
 

@@ -14,7 +14,7 @@ export function BuildingsPage() {
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const close = () => setDialog(null)
 
-  if (!isPlatformAdmin) return <Navigate to="/admin/people" replace />
+  if (!isPlatformAdmin) return <Navigate to="/" replace />
 
   return (
     <>

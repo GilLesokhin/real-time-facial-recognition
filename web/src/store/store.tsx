@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react'
+import { useParams } from 'react-router-dom'
 import { useAuth } from './auth'
 import { seedBuildings, seedEvents, seedPeople, seedTerminals, seedUsers } from '../data/seed'
 import { newId } from '../lib/format'
@@ -15,11 +16,9 @@ interface State {
   terminals: Terminal[]
   people: Person[]
   events: AccessEvent[]
-  currentBuildingId: string | null
 }
 
 type Action =
-  | { type: 'selectBuilding'; buildingId: string | null }
   | { type: 'updateUser'; user: User }
   | { type: 'removeUser'; id: string }
   | { type: 'addBuilding'; building: Building }
@@ -42,7 +41,6 @@ const initialState = (): State => ({
   terminals: seedTerminals,
   people: seedPeople,
   events: seedEvents,
-  currentBuildingId: 'b-north',
 })
 
 const loadState = (): State => {
@@ -65,16 +63,13 @@ const replace = <T extends { id: string }>(list: T[], item: T) => list.map((x) =
 
 function reduce(state: State, action: Action): State {
   switch (action.type) {
-    case 'selectBuilding':
-      return { ...state, currentBuildingId: action.buildingId }
-
     case 'updateUser':
       return { ...state, users: replace(state.users, action.user) }
     case 'removeUser':
       return { ...state, users: state.users.filter((u) => u.id !== action.id) }
 
     case 'addBuilding':
-      return { ...state, buildings: [...state.buildings, action.building], currentBuildingId: action.building.id }
+      return { ...state, buildings: [...state.buildings, action.building] }
     case 'updateBuilding':
       return { ...state, buildings: replace(state.buildings, action.building) }
     case 'removeBuilding':
@@ -124,17 +119,14 @@ function useStoreValue() {
 
   return useMemo(() => {
     const visibleBuildings = buildingsFor(state, currentUser)
-    // Falls back to the first visible building if the selected one was removed or isn't visible.
-    const currentBuilding = visibleBuildings.find((b) => b.id === state.currentBuildingId) ?? visibleBuildings[0] ?? null
 
     return {
       state,
       currentUser,
       isPlatformAdmin: currentUser?.role === 'platform_admin',
       visibleBuildings,
-      currentBuilding,
-
-      selectBuilding: (buildingId: string | null) => dispatch({ type: 'selectBuilding', buildingId }),
+      /** Where an admin lands: their (first) building's terminals, or the Buildings list if they have none. */
+      homePath: visibleBuildings[0] ? `/buildings/${visibleBuildings[0].id}/terminals` : '/buildings',
 
       // PATCH /users/:id (role + buildings), DELETE /users/:id. Platform Admin only.
       setUserAccess: (user: User, role: UserRole, buildingIds: string[]) =>
@@ -194,4 +186,12 @@ export function useStore() {
   const store = useContext(StoreContext)
   if (!store) throw new Error('useStore must be used inside <StoreProvider>')
   return store
+}
+
+/** The building in the URL (`/buildings/:buildingId/...`). AdminLayout shows Not found before a page can ask for one you can't reach. */
+export function useCurrentBuilding() {
+  const { buildingId } = useParams()
+  const building = useStore().visibleBuildings.find((b) => b.id === buildingId)
+  if (!building) throw new Error('useCurrentBuilding must be used under /buildings/:buildingId')
+  return building
 }

@@ -1,15 +1,14 @@
 import { useState } from 'react'
 import { Avatar } from '../../components/Avatar'
 import { formatDateTime } from '../../lib/format'
-import { useStore } from '../../store/store'
+import { useCurrentBuilding, useStore } from '../../store/store'
 import type { AccessResult } from '../../types'
 
 export function AccessLogPage() {
-  const { state, currentBuilding } = useStore()
+  const { state } = useStore()
+  const currentBuilding = useCurrentBuilding()
   const [terminalFilter, setTerminalFilter] = useState('')
   const [resultFilter, setResultFilter] = useState<AccessResult | ''>('')
-
-  if (!currentBuilding) return <p className="card empty muted">No building selected.</p>
 
   const terminals = state.terminals.filter((t) => t.building_id === currentBuilding.id)
   const events = state.events.filter(
