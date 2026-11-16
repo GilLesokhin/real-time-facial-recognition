@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # True when served over HTTPS: the browser then only sends the cookie over HTTPS.
     COOKIE_SECURE: bool = False
 
-    # Only read by migration 0002. Changing them later does nothing.
+    # Only read by `uv run python -m app.users.create_admin`.
     PLATFORM_ADMIN_EMAIL: str | None = None
     PLATFORM_ADMIN_PASSWORD: str | None = Field(default=None, min_length=8)
     PLATFORM_ADMIN_NAME: str = "Platform Admin"

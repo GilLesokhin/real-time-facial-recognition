@@ -47,7 +47,6 @@ def engine() -> Iterator[Engine]:
         conn.execute(text("CREATE SCHEMA public"))
     config = Config(ALEMBIC_INI)
     config.attributes["database_url"] = url
-    config.attributes["skip_seed"] = True  # tests create their own users
     command.upgrade(config, "head")
     yield engine
     engine.dispose()

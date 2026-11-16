@@ -17,11 +17,12 @@ The Python backend: FastAPI, SQLAlchemy, Alembic and Postgres, managed with [uv]
    uv run python -c "import secrets; print(secrets.token_urlsafe(32))"
    ```
 
-4. Install the packages and build the database. This also creates the Platform Admin from `.env`.
+4. Install the packages, build the database and create the Platform Admin from `.env`.
 
    ```bash
    uv sync
    uv run alembic upgrade head
+   uv run python -m app.users.create_admin
    ```
 
 ## Run
@@ -53,5 +54,5 @@ Each feature has three layers: router (HTTP) → service (rules) → db (queries
 | `app/main.py` | The app and the session-cookie middleware |
 | `app/core/` | Settings from `.env`, the database session, password hashing |
 | `app/<feature>/` | One folder per feature, such as `auth/` and `users/` |
-| `migrations/versions/` | Database migrations, run with `uv run alembic upgrade head` |
+| `migrations/versions/` | Database migrations. Create one with `uv run alembic revision --autogenerate -m "..."` after changing a `models.py`, then run `uv run alembic upgrade head` |
 | `tests/` | pytest suite, one folder per feature. `conftest.py` sets up the test database |
