@@ -4,20 +4,19 @@ version = "0.1.0"
 description = "Backend for Building Entry"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi[standard]>=0.115",
-    "sqlalchemy>=2.0.36",
-    "alembic>=1.14",
-    "psycopg[binary]>=3.2",
-    "pydantic-settings>=2.6",
-    # Signs the session cookie (used by Starlette's SessionMiddleware).
-    "itsdangerous>=2.2",
-    "pwdlib[argon2]>=0.2.1",
+    "alembic>=1.20.1",
+    "fastapi[standard]>=0.163.1",
+    "itsdangerous>=2.2.0",
+    "psycopg[binary]>=3.3.9",
+    "pwdlib[argon2]>=0.4.2",
+    "pydantic-settings>=2.16.3",
+    "sqlalchemy>=2.1.8",
 ]
 
 [dependency-groups]
 dev = [
-    "pytest>=8.3",
-    "ruff>=0.8",
+    "pytest>=9.2.0",
+    "ruff>=0.17.5",
 ]
 
 [tool.pytest.ini_options]
