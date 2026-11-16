@@ -5,7 +5,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Engine, create_engine, make_url, text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -18,12 +18,28 @@ PASSWORD = "correct-horse-battery"
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
 
+def create_database_if_missing(url: str) -> None:
+    """Migrations run inside a database, so the test database itself is created here."""
+    name = make_url(url).database
+    server = create_engine(
+        make_url(url).set(database="postgres"), isolation_level="AUTOCOMMIT"
+    )
+    with server.connect() as conn:
+        exists = conn.scalar(
+            text("SELECT 1 FROM pg_database WHERE datname = :name"), {"name": name}
+        )
+        if not exists:
+            conn.execute(text(f'CREATE DATABASE "{name}"'))
+    server.dispose()
+
+
 @pytest.fixture(scope="session")
 def engine() -> Iterator[Engine]:
     """Once per test run: empty the test database and run every migration."""
     url = settings.TEST_DATABASE_URL
     if not url or url == settings.DATABASE_URL:
         raise RuntimeError("Set TEST_DATABASE_URL in api/.env to a separate database.")
+    create_database_if_missing(url)
     engine = create_engine(url)
     with engine.begin() as conn:
         # Test database only: wipe everything so the migrations start from scratch.

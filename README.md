@@ -9,9 +9,10 @@ A face-recognition entry system for multiple buildings. Admins enroll the people
 
 ## Run it
 
-Start the API first ([api/README.md](api/README.md) has the one-time setup):
+Start Postgres, then the API ([api/README.md](api/README.md) has the one-time setup):
 
 ```bash
+docker compose up -d
 cd api
 uv run fastapi dev app/main.py
 ```

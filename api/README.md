@@ -4,13 +4,11 @@ The Python backend: FastAPI, SQLAlchemy, Alembic and Postgres, managed with [uv]
 
 ## Set up (once)
 
-1. Install uv and Postgres.
-2. Create a user and two databases: one for the app, one only for the tests (the tests wipe it).
+1. Install uv and Docker.
+2. Start Postgres (with pgvector) from the repo root. It creates the `building_entry` database. The tests create their own `building_entry_test` on their first run.
 
-   ```sql
-   CREATE USER building_entry WITH PASSWORD 'choose-one';
-   CREATE DATABASE building_entry OWNER building_entry;
-   CREATE DATABASE building_entry_test OWNER building_entry;
+   ```bash
+   docker compose up -d
    ```
 
 3. Copy `.env.example` to `.env` and fill it in: both database URLs, a random `SECRET_KEY` (at least 32 characters) and the first Platform Admin's email and password.
@@ -40,7 +38,7 @@ The API runs on http://localhost:8000, with interactive docs at http://localhost
 uv run pytest
 ```
 
-The tests use `TEST_DATABASE_URL`, never `DATABASE_URL`. Each run empties that database and rebuilds it with the real migrations, and each test is rolled back afterwards.
+The tests use `TEST_DATABASE_URL`, never `DATABASE_URL`. Each run creates that database if it's missing, empties it and rebuilds it with the real migrations, and each test is rolled back afterwards.
 
 ## Endpoints
 
