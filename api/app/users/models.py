@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, String, func
+from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -28,8 +28,8 @@ class User(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255))
-    # Stored lowercase, so "Ana@x.com" and "ana@x.com" are the same account.
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    # Stored lowercase. The unique index below also ignores case, as a safety net.
+    email: Mapped[str] = mapped_column(String(255))
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[UserRole] = mapped_column(
         # Store the values ("building_admin"), not the names.
@@ -39,3 +39,7 @@ class User(Base):
     )
     building_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("buildings.id", ondelete="RESTRICT"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# One account per email, ignoring case: "Ana@x.com" and "ana@x.com" are the same.
+Index("uq_users_email", func.lower(User.email), unique=True)
