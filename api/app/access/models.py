@@ -13,7 +13,10 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.buildings.models import Building
 from app.core.db import Base
+from app.people.models import Person
+from app.terminals.models import Terminal
 
 
 class AccessResult(StrEnum):
@@ -27,10 +30,8 @@ class AccessEvent(Base):
     __tablename__ = "access_events"
     __table_args__ = (
         # The terminal and the person must be in the event's building.
-        ForeignKeyConstraint(
-            ["terminal_id", "building_id"], ["terminals.id", "terminals.building_id"], ondelete="RESTRICT"
-        ),
-        ForeignKeyConstraint(["person_id", "building_id"], ["people.id", "people.building_id"], ondelete="RESTRICT"),
+        ForeignKeyConstraint(["terminal_id", "building_id"], [Terminal.id, Terminal.building_id], ondelete="RESTRICT"),
+        ForeignKeyConstraint(["person_id", "building_id"], [Person.id, Person.building_id], ondelete="RESTRICT"),
         CheckConstraint(
             "(result = 'granted' AND person_id IS NOT NULL) OR (result = 'denied' AND person_id IS NULL)",
             name="include_person_id_only_when_granted",
@@ -38,7 +39,7 @@ class AccessEvent(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    building_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("buildings.id", ondelete="RESTRICT"))
+    building_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(Building.id, ondelete="RESTRICT"))
     terminal_id: Mapped[uuid.UUID]
     person_id: Mapped[uuid.UUID | None]
     result: Mapped[AccessResult] = mapped_column(

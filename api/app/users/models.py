@@ -5,6 +5,7 @@ from enum import StrEnum
 from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.buildings.models import Building
 from app.core.db import Base
 
 
@@ -37,7 +38,7 @@ class User(Base):
         default=UserRole.UNASSIGNED,
         server_default=UserRole.UNASSIGNED.value,
     )
-    building_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("buildings.id", ondelete="RESTRICT"), index=True)
+    building_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey(Building.id, ondelete="RESTRICT"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

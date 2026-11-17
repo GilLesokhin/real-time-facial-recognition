@@ -13,6 +13,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.buildings.models import Building
 from app.core.db import Base
 
 EMBEDDING_SIZE = 128
@@ -26,7 +27,7 @@ class Person(Base):
     __table_args__ = (UniqueConstraint("id", "building_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    building_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("buildings.id", ondelete="RESTRICT"), index=True)
+    building_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(Building.id, ondelete="RESTRICT"), index=True)
     name: Mapped[str] = mapped_column(String(255))
     apartment: Mapped[str] = mapped_column(String(255))
     # Deferred: loads only when the code reads person.photo, never with the person.
