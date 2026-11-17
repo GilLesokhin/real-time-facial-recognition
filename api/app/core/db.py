@@ -25,8 +25,16 @@ engine = create_engine(settings.DATABASE_URL)
 
 
 def get_session() -> Iterator[Session]:
+    """One session per request. Closing it rolls back anything not committed."""
     with Session(engine) as session:
         yield session
 
 
 SessionDep = Annotated[Session, Depends(get_session)]
+
+# The 409 message for each unique index. See the handler in app/main.py.
+CONFLICTS = {
+    "ix_users_email": "An account with this email already exists.",
+    "uq_buildings_active_name": "A building with this name already exists.",
+    "uq_terminals_active_name": "This building already has a terminal with this name.",
+}
