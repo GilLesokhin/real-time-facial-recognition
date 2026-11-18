@@ -17,3 +17,6 @@ dist/
 .mypy_cache/
 .coverage
 htmlcov/
+
+# Face models, downloaded on first use (app/core/faces.py)
+models/
