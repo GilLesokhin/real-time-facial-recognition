@@ -8,10 +8,13 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, make_url, text
 from sqlalchemy.orm import Session
 
+from app.buildings.models import Building
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.security import hash_password
 from app.main import app
+from app.people.models import EMBEDDING_SIZE, Person
+from app.terminals.models import Terminal
 from app.users.models import User, UserRole
 
 PASSWORD = "correct-horse-battery"
@@ -76,11 +79,47 @@ def client(session: Session) -> Iterator[TestClient]:
 
 @pytest.fixture
 def make_user(session: Session) -> Callable[..., User]:
-    def _make(email: str, role: UserRole = UserRole.BUILDING_ADMIN) -> User:
-        user = User(name=email.split("@")[0], email=email, password_hash=hash_password(PASSWORD), role=role)
+    def _make(email: str, role: UserRole = UserRole.PLATFORM_ADMIN, building: Building | None = None) -> User:
+        building_id = building.id if building else None
+        user = User(
+            name=email.split("@")[0], email=email, password_hash=hash_password(PASSWORD), role=role, building_id=building_id
+        )
         session.add(user)
         session.flush()
         return user
+
+    return _make
+
+
+@pytest.fixture
+def make_building(session: Session) -> Callable[..., Building]:
+    def _make(name: str = "North Tower") -> Building:
+        building = Building(name=name, address="12 Herzl St")
+        session.add(building)
+        session.flush()
+        return building
+
+    return _make
+
+
+@pytest.fixture
+def make_terminal(session: Session) -> Callable[..., Terminal]:
+    def _make(building: Building, name: str = "Main lobby") -> Terminal:
+        terminal = Terminal(building_id=building.id, name=name)
+        session.add(terminal)
+        session.flush()
+        return terminal
+
+    return _make
+
+
+@pytest.fixture
+def make_person(session: Session) -> Callable[..., Person]:
+    def _make(building: Building, name: str = "Dana Levi") -> Person:
+        person = Person(building_id=building.id, name=name, apartment="4B", photo=b"jpeg", embedding=[0.0] * EMBEDDING_SIZE)
+        session.add(person)
+        session.flush()
+        return person
 
     return _make
 
