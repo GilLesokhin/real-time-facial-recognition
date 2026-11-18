@@ -1,23 +1,23 @@
 import { useRef, useState } from 'react'
 import { Camera, ImageUp, Trash2, User } from 'lucide-react'
 import { useCamera } from '../hooks/useCamera'
+import { mirroredCanvas } from '../lib/face/detector'
 
 interface PhotoPickerProps {
   value: string | null
   onChange: (photo: string | null) => void
 }
 
-/** Shrinks an uploaded image so photos stay small enough for localStorage. */
+/**
+ * Shrinks an uploaded image, so the upload stays small, and mirrors it like every other face
+ * image the server sees (see the orientation rule in lib/face/detector.ts).
+ */
 function resizeImage(file: File, maxWidth = 480): Promise<string> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)
     const img = new Image()
     img.onload = () => {
-      const scale = Math.min(1, maxWidth / img.width)
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.round(img.width * scale)
-      canvas.height = Math.round(img.height * scale)
-      canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height)
+      const canvas = mirroredCanvas(img, maxWidth)
       URL.revokeObjectURL(url)
       resolve(canvas.toDataURL('image/jpeg', 0.85))
     }

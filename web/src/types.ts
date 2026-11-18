@@ -1,22 +1,37 @@
+/** These match the API's responses. See http://localhost:8000/docs. */
+
 export interface Building {
   id: string
   name: string
   address: string
 }
 
+export type AccessResult = 'granted' | 'denied'
+
 /** A door with a camera and screen. One terminal per entry point. */
 export interface Terminal {
   id: string
   building_id: string
   name: string
+  /** The newest check at this door. Null when there's none yet. */
+  last_result: AccessResult | null
+  last_at: string | null
 }
 
+/** What the door screen shows. */
+export interface TerminalScreen {
+  id: string
+  name: string
+  building_id: string
+  building_name: string
+}
+
+/** Someone allowed through the door. The photo loads from `personPhotoUrl`. */
 export interface Person {
   id: string
   building_id: string
   name: string
-  unit: string
-  photo: string | null
+  apartment: string
   created_at: string
 }
 
@@ -28,18 +43,25 @@ export interface User {
   name: string
   email: string
   role: UserRole
-  /** Buildings a Building Admin manages. Empty for unassigned users and Platform Admins (who see all). */
-  building_ids: string[]
+  /** The one building a Building Admin manages. Null for everyone else. */
+  building_id: string | null
   created_at: string
 }
 
-export type AccessResult = 'granted' | 'denied'
-
 export interface AccessEvent {
   id: string
-  building_id: string
   terminal_id: string
-  result: AccessResult
+  terminal_name: string
   person_id: string | null
-  at: string
+  person_name: string | null
+  result: AccessResult
+  /** Similarity of the nearest person. Null when nobody is enrolled. */
+  score: number | null
+  created_at: string
+}
+
+export interface IdentifyResult {
+  result: AccessResult
+  person: { id: string; name: string } | null
+  score: number | null
 }

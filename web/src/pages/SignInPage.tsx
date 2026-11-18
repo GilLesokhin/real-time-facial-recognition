@@ -1,7 +1,7 @@
 import { useState, type SubmitEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { Logo } from '../components/Logo'
-import { ApiError } from '../lib/api'
+import { ApiError, errorMessage as apiErrorMessage } from '../lib/api'
 import { useAuth } from '../store/auth'
 import { useStore } from '../store/store'
 
@@ -10,18 +10,19 @@ const errorMessage = (err: unknown) => {
   if (err instanceof ApiError && err.status === 403)
     return "Your account doesn't have access yet. A Platform Admin needs to give you a role."
   if (err instanceof ApiError && err.status === 422) return 'Enter a valid email address.'
-  return "Can't reach the server. Try again in a moment."
+  return apiErrorMessage(err)
 }
 
 export function SignInPage() {
   const { status, signIn } = useAuth()
-  const { homePath } = useStore()
+  const { homePath, buildingsLoaded } = useStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
-  // Also runs right after a successful sign-in.
+  // Also runs right after a successful sign-in. Waits for the buildings, which decide where home is.
+  if (status === 'signedIn' && !buildingsLoaded) return null
   if (status === 'signedIn') return <Navigate to={homePath} replace />
 
   const onSubmit = async (e: SubmitEvent<HTMLFormElement>) => {

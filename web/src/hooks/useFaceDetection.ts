@@ -8,7 +8,6 @@ import {
   scoreOf,
   toJpeg,
   type BoundingBox,
-  type Delegate,
   type Detection,
   type DetectionSettings,
   type FaceDetector,
@@ -44,22 +43,15 @@ export interface FaceShot {
   detectMs: number
 }
 
-/** A window where a face was seen but nothing was sent, and why. */
-export interface SkippedWindow {
-  reason: 'too far' | 'not steady'
-  framesWithFace: number
-  frames: number
-}
-
 interface Options {
   /** While false, faces are still tracked for the box, but nothing is handed over. */
   sending: boolean
   /** Called at most once per window, with the best face of that window. */
   onShot: (shot: FaceShot) => void
-  /** Called when a window saw a face but didn't send it. */
-  onSkip?: (skip: SkippedWindow) => void
   settings?: DetectionSettings
 }
+
+type ModelStatus = 'loading' | 'ready' | 'error'
 
 /**
  * Runs the face detector on the camera every `detectEveryMs`. Returns what the latest frame shows
@@ -67,53 +59,48 @@ interface Options {
  */
 export function useFaceDetection(
   videoRef: RefObject<HTMLVideoElement | null>,
-  { sending, onShot, onSkip, settings = DEFAULT_SETTINGS }: Options,
+  { sending, onShot, settings = DEFAULT_SETTINGS }: Options,
 ) {
   const [live, setLive] = useState<LiveFrame | null>(null)
-  const [model, setModel] = useState<{ status: 'loading' | 'ready' | 'error'; delegate: Delegate | null; loadMs: number | null }>(
-    { status: 'loading', delegate: null, loadMs: null },
-  )
+  const [modelStatus, setModelStatus] = useState<ModelStatus>('loading')
   const detectorRef = useRef<FaceDetector | null>(null)
 
   // The loop reads the latest props through refs, so changing a setting doesn't restart it.
-  const latest = useRef({ sending, onShot, onSkip, settings })
+  const latest = useRef({ sending, onShot, settings })
   useEffect(() => {
-    latest.current = { sending, onShot, onSkip, settings }
+    latest.current = { sending, onShot, settings }
   })
 
-  // 1. Load the model. Only a delegate change needs a reload.
+  // 1. Load the model. If the GPU fails, fall back to the CPU. Only a delegate change needs a reload.
   const { delegate, minConfidence, detectEveryMs } = settings
   useEffect(() => {
     let cancelled = false
-    const started = performance.now()
     ;(async () => {
       try {
         const first = latest.current.settings
-        let used: Delegate = delegate
         const detector = await createFaceDetector(delegate, first.minConfidence).catch(() => {
           if (delegate === 'CPU') throw new Error('CPU failed')
-          used = 'CPU'
           return createFaceDetector('CPU', first.minConfidence)
         })
         if (cancelled) return detector.close()
         detectorRef.current = detector
-        setModel({ status: 'ready', delegate: used, loadMs: Math.round(performance.now() - started) })
+        setModelStatus('ready')
       } catch {
-        if (!cancelled) setModel({ status: 'error', delegate: null, loadMs: null })
+        if (!cancelled) setModelStatus('error')
       }
     })()
     return () => {
       cancelled = true
       detectorRef.current?.close()
       detectorRef.current = null
-      setModel({ status: 'loading', delegate: null, loadMs: null })
+      setModelStatus('loading')
     }
   }, [delegate])
 
   // The confidence threshold can change on the running detector, no reload.
   useEffect(() => {
     void detectorRef.current?.setOptions({ minDetectionConfidence: minConfidence })
-  }, [minConfidence, model.status])
+  }, [minConfidence, modelStatus])
 
   // 2. The loop: detect every `detectEveryMs`, send the best face every `windowMs`.
   useEffect(() => {
@@ -121,12 +108,11 @@ export function useFaceDetection(
     let windowStart = performance.now()
     let frames = 0
     let framesWithFace = 0
-    let framesWithAnyFace = 0
     let detectMsTotal = 0
     let best: { score: number; box: BoundingBox; crop: HTMLCanvasElement; video: VideoSize } | null = null
     const resetWindow = (now: number) => {
       windowStart = now
-      frames = framesWithFace = framesWithAnyFace = detectMsTotal = 0
+      frames = framesWithFace = detectMsTotal = 0
       best = null
     }
 
@@ -151,7 +137,6 @@ export function useFaceDetection(
 
       frames++
       detectMsTotal += detectMs
-      if (faces.length) framesWithAnyFace++
       if (face?.boundingBox) {
         framesWithFace++
         // Crop now, from this exact frame. By the end of the window the person has moved.
@@ -163,17 +148,10 @@ export function useFaceDetection(
       if (now - windowStart < s.windowMs) return
       const shot = best
       const stats = { framesWithFace, frames, detectMs: detectMsTotal / Math.max(frames, 1) }
-      const sawAnyFace = framesWithAnyFace > 0
       resetWindow(now)
 
-      if (!shot) {
-        if (sawAnyFace) latest.current.onSkip?.({ reason: 'too far', ...stats })
-        return
-      }
-      if (stats.framesWithFace / stats.frames < s.minSteady) {
-        latest.current.onSkip?.({ reason: 'not steady', ...stats })
-        return
-      }
+      // No close face, or the face wasn't steady enough: send nothing this window.
+      if (!shot || stats.framesWithFace / stats.frames < s.minSteady) return
       void toJpeg(shot.crop, s.jpegQuality).then((jpeg) => {
         if (jpeg && !cancelled && latest.current.sending) {
           latest.current.onShot({ jpeg, cropSize: shot.crop.width, score: shot.score, box: shot.box, video: shot.video, ...stats })
@@ -188,5 +166,5 @@ export function useFaceDetection(
     }
   }, [videoRef, detectEveryMs])
 
-  return { live, model }
+  return { live, modelStatus }
 }

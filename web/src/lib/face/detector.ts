@@ -12,9 +12,6 @@ import modelPath from './blaze_face_short_range.tflite?url'
 export type { BoundingBox, Detection, FaceDetector }
 export type Delegate = 'GPU' | 'CPU'
 
-/** BlazeFace returns its 6 keypoints in this order. "Right" and "left" are the person's own, not the screen's. */
-export const KEYPOINT_NAMES = ['right eye', 'left eye', 'nose tip', 'mouth', 'right ear', 'left ear']
-
 /** Loads the WASM runtime and the model. Call `.close()` when done. */
 export function createFaceDetector(
   delegate: Delegate = DEFAULT_SETTINGS.delegate,
@@ -27,10 +24,7 @@ export function createFaceDetector(
   )
 }
 
-/**
- * Every knob of the browser side of face detection. The terminal uses DEFAULT_SETTINGS;
- * /prototype/face-detect lets you change them live.
- */
+/** Every knob of the browser side of face detection. The terminal uses DEFAULT_SETTINGS. */
 export interface DetectionSettings {
   /** Where the model runs: GPU (WebGL) or CPU (WASM). */
   delegate: Delegate

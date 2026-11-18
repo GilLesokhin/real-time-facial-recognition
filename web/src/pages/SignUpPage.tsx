@@ -1,7 +1,7 @@
 import { useState, type SubmitEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Logo } from '../components/Logo'
-import { ApiError } from '../lib/api'
+import { ApiError, errorMessage } from '../lib/api'
 import { useAuth } from '../store/auth'
 
 /** Public sign-up. New accounts are unassigned until a Platform Admin gives them a role. */
@@ -28,7 +28,7 @@ export function SignUpPage() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) setError('That email already has an account.')
       else if (err instanceof ApiError && err.status === 422) setError('Enter a valid email address.')
-      else setError("Can't reach the server. Try again in a moment.")
+      else setError(errorMessage(err))
     } finally {
       setPending(false)
     }
@@ -42,7 +42,7 @@ export function SignUpPage() {
           <>
             <h1 className="title">Waiting for approval</h1>
             <p className="muted">
-              Your account is created. A Platform Admin will give you access to your buildings, and then you can sign
+              Your account is created. A Platform Admin will give you access to your building, and then you can sign
               in.
             </p>
             <Link to="/login" className="btn">
@@ -53,7 +53,7 @@ export function SignUpPage() {
           <form className="form-grid auth-form" onSubmit={onSubmit} noValidate>
             <div>
               <h1 className="title">Create an admin account</h1>
-              <p className="muted">For building staff. A Platform Admin gives new accounts a role and buildings.</p>
+              <p className="muted">For building staff. A Platform Admin gives new accounts a role and a building.</p>
             </div>
             <label className="field">
               <span className="label">Full name</span>

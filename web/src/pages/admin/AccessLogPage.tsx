@@ -1,22 +1,21 @@
 import { useState } from 'react'
 import { Avatar } from '../../components/Avatar'
+import { useApi } from '../../hooks/useApi'
+import { personPhotoUrl } from '../../lib/api'
 import { formatDateTime } from '../../lib/format'
-import { useCurrentBuilding, useStore } from '../../store/store'
-import type { AccessResult } from '../../types'
+import { useCurrentBuilding } from '../../store/store'
+import type { AccessEvent, AccessResult, Terminal } from '../../types'
 
 export function AccessLogPage() {
-  const { state } = useStore()
   const currentBuilding = useCurrentBuilding()
   const [terminalFilter, setTerminalFilter] = useState('')
   const [resultFilter, setResultFilter] = useState<AccessResult | ''>('')
 
-  const terminals = state.terminals.filter((t) => t.building_id === currentBuilding.id)
-  const events = state.events.filter(
-    (ev) =>
-      ev.building_id === currentBuilding.id &&
-      (!terminalFilter || ev.terminal_id === terminalFilter) &&
-      (!resultFilter || ev.result === resultFilter),
-  )
+  const params = new URLSearchParams()
+  if (terminalFilter) params.set('terminal', terminalFilter)
+  if (resultFilter) params.set('result', resultFilter)
+  const { data: events, error } = useApi<AccessEvent[]>(`/buildings/${currentBuilding.id}/access-log?${params}`)
+  const { data: terminals } = useApi<Terminal[]>(`/buildings/${currentBuilding.id}/terminals`)
 
   return (
     <>
@@ -31,9 +30,9 @@ export function AccessLogPage() {
             <span className="label">Terminal</span>
             <select className="select" value={terminalFilter} onChange={(e) => setTerminalFilter(e.target.value)}>
               <option value="">All</option>
-              {terminals.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
+              {terminals?.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
                 </option>
               ))}
             </select>
@@ -54,7 +53,11 @@ export function AccessLogPage() {
       </div>
 
       <div className="card table-wrap">
-        {events.length === 0 ? (
+        {error ? (
+          <p className="empty error">{error}</p>
+        ) : !events ? (
+          <p className="empty muted">Loading…</p>
+        ) : events.length === 0 ? (
           <p className="empty muted">No entries yet.</p>
         ) : (
           <table className="data">
@@ -64,32 +67,32 @@ export function AccessLogPage() {
                 <th className="label">Person</th>
                 <th className="label">Terminal</th>
                 <th className="label">Result</th>
+                <th className="label">Score</th>
               </tr>
             </thead>
             <tbody>
-              {events.map((ev) => {
-                const person = ev.person_id ? state.people.find((p) => p.id === ev.person_id) : undefined
-                const terminal = state.terminals.find((t) => t.id === ev.terminal_id)
-                return (
-                  <tr key={ev.id}>
-                    <td className="muted">{formatDateTime(ev.at)}</td>
-                    <td>
-                      {person ? (
-                        <div className="cell-row">
-                          <Avatar name={person.name} photo={person.photo} size={32} />
-                          {person.name}
-                        </div>
-                      ) : (
-                        <span className="faint">{ev.person_id ? 'Removed person' : 'Unknown face'}</span>
-                      )}
-                    </td>
-                    <td className="muted">{terminal?.name ?? 'Removed terminal'}</td>
-                    <td>
-                      <span className={`badge badge-${ev.result}`}>{ev.result}</span>
-                    </td>
-                  </tr>
-                )
-              })}
+              {events.map((ev) => (
+                <tr key={ev.id}>
+                  <td className="muted">{formatDateTime(ev.created_at)}</td>
+                  <td>
+                    {ev.person_id && ev.person_name ? (
+                      <div className="cell-row">
+                        <Avatar name={ev.person_name} photo={personPhotoUrl(ev.person_id)} size={32} />
+                        {ev.person_name}
+                      </div>
+                    ) : (
+                      <span className="faint">Unknown face</span>
+                    )}
+                  </td>
+                  <td className="muted">{ev.terminal_name}</td>
+                  <td>
+                    <span className={`badge badge-${ev.result}`}>{ev.result}</span>
+                  </td>
+                  <td className="muted" title="Similarity to the nearest person. 0.363 or more is a match.">
+                    {ev.score === null ? '—' : ev.score.toFixed(2)}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}
