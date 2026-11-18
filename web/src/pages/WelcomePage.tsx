@@ -5,17 +5,17 @@ import { useStore } from '../store/store'
 
 export function WelcomePage() {
   const { status, user } = useAuth()
-  const { homePath } = useStore()
+  const { homePath, buildingsLoaded } = useStore()
 
   // Still asking the API whether the session cookie is valid: don't flash the wrong buttons.
-  if (status === 'loading') return null
+  if (status === 'loading' || (user && !buildingsLoaded)) return null
 
   return (
     <div className="center-page">
       <div className="card card-pad form-grid" style={{ width: 'min(420px, 100%)' }}>
         <Logo />
         <div>
-          <h1 className="title">Real Time Facial Recognition</h1>
+          <h1 className="title">Building Entry</h1>
           <p className="muted">Face-recognition entry for your buildings.</p>
         </div>
         {user ? (
