@@ -4,9 +4,14 @@ from psycopg.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 from starlette.middleware.sessions import SessionMiddleware
 
+from app.access.router import router as access_router
 from app.auth.router import router as auth_router
+from app.buildings.router import router as buildings_router
 from app.core.config import settings
 from app.core.db import CONFLICTS
+from app.people.router import router as people_router
+from app.terminals.router import router as terminals_router
+from app.users.router import router as users_router
 
 app = FastAPI(title="Real Time Facial Recognition API")
 
@@ -20,6 +25,11 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(buildings_router)
+app.include_router(users_router)
+app.include_router(people_router)
+app.include_router(terminals_router)
+app.include_router(access_router)
 
 
 @app.exception_handler(IntegrityError)

@@ -1,6 +1,8 @@
+import zlib
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
+import numpy as np
 import pytest
 from alembic import command
 from alembic.config import Config
@@ -9,6 +11,7 @@ from sqlalchemy import Engine, create_engine, make_url, text
 from sqlalchemy.orm import Session
 
 from app.buildings.models import Building
+from app.core import faces
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.security import hash_password
@@ -115,8 +118,9 @@ def make_terminal(session: Session) -> Callable[..., Terminal]:
 
 @pytest.fixture
 def make_person(session: Session) -> Callable[..., Person]:
-    def _make(building: Building, name: str = "Dana Levi") -> Person:
-        person = Person(building_id=building.id, name=name, apartment="4B", photo=b"jpeg", embedding=[0.0] * EMBEDDING_SIZE)
+    def _make(building: Building, name: str = "Dana Levi", face: str | None = None) -> Person:
+        embedding = face_vector(face) if face else [0.0] * EMBEDDING_SIZE
+        person = Person(building_id=building.id, name=name, apartment="4B", photo=b"jpeg", embedding=embedding)
         session.add(person)
         session.flush()
         return person
@@ -126,3 +130,38 @@ def make_person(session: Session) -> Callable[..., Person]:
 
 def login(client: TestClient, email: str, password: str = PASSWORD):
     return client.post("/auth/login", json={"email": email, "password": password})
+
+
+@pytest.fixture
+def sign_in(client: TestClient, make_user) -> Callable[..., User]:
+    """Creates an admin and signs the test client in as them."""
+
+    def _sign_in(role: UserRole = UserRole.PLATFORM_ADMIN, building: Building | None = None, email: str | None = None) -> User:
+        user = make_user(email or f"{role.value}@example.com", role, building)
+        assert login(client, user.email).status_code == 200
+        return user
+
+    return _sign_in
+
+
+# --- Fake faces ---
+# The real models are slow and need face photos. In tests, an image's bytes say what it shows:
+# b"face:ana" is Ana's face, and anything else has no face.
+
+
+def face_vector(face: str) -> list[float]:
+    """A random unit vector, the same every time for the same face. Two different faces are far apart."""
+    vector = np.random.default_rng(zlib.crc32(face.encode())).standard_normal(EMBEDDING_SIZE)
+    return (vector / np.linalg.norm(vector)).tolist()
+
+
+def _fake_embed(data: bytes) -> list[float]:
+    if not data.startswith(b"face:"):
+        raise faces.NoFaceError("No face found in the photo.")
+    return face_vector(data.decode())
+
+
+@pytest.fixture(autouse=True)
+def fake_faces(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(faces, "embed_face", _fake_embed)
+    monkeypatch.setattr(faces, "prepare_photo", lambda data: (b"jpeg:" + data, _fake_embed(data)))

@@ -27,3 +27,12 @@ def current_admin(request: Request, session: SessionDep) -> User:
 
 # Short form for routes: `admin: CurrentAdmin`.
 CurrentAdmin = Annotated[User, Depends(current_admin)]
+
+
+def platform_admin(admin: CurrentAdmin) -> User:
+    if admin.role != UserRole.PLATFORM_ADMIN:
+        raise HTTPException(403, "Only a Platform Admin can do this.")
+    return admin
+
+
+PlatformAdmin = Annotated[User, Depends(platform_admin)]

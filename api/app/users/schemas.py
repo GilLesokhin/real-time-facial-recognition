@@ -15,5 +15,11 @@ class UserOut(BaseModel):
     name: str
     email: EmailStr
     role: UserRole
-    building_ids: list[uuid.UUID] = []
+    # The one building a Building Admin manages. Null for everyone else.
+    building_id: uuid.UUID | None
     created_at: datetime
+
+
+class UserAccessIn(BaseModel):
+    role: UserRole
+    building_id: uuid.UUID | None = None

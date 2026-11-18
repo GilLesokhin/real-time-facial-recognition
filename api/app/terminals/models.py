@@ -17,6 +17,8 @@ class Terminal(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     building_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(Building.id, ondelete="RESTRICT"), index=True)
     name: Mapped[str] = mapped_column(String(255))
+    # SHA-256 of the terminal's sign-in key. Null until "Open terminal" makes one.
+    key_hash: Mapped[str | None] = mapped_column(String(64))
     is_active: Mapped[bool] = mapped_column(default=True, server_default=true())
 
 
