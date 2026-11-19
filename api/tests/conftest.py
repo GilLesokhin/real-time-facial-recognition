@@ -36,21 +36,35 @@ def create_database_if_missing(url: str) -> None:
     server.dispose()
 
 
-@pytest.fixture(scope="session")
-def engine() -> Iterator[Engine]:
-    """Once per test run: empty the test database and run every migration."""
+def get_test_database_url() -> str:
     url = settings.TEST_DATABASE_URL
     if not url or url == settings.DATABASE_URL:
         raise RuntimeError("Set TEST_DATABASE_URL in api/.env to a separate database.")
-    create_database_if_missing(url)
-    engine = create_engine(url)
+    return url
+
+
+def drop_all_tables(engine: Engine) -> None:
+    """Start from an empty database, so the migrations build everything."""
     with engine.begin() as conn:
-        # Test database only: wipe everything so the migrations start from scratch.
         conn.execute(text("DROP SCHEMA public CASCADE"))
         conn.execute(text("CREATE SCHEMA public"))
+
+
+def run_migrations(url: str) -> None:
     config = Config(ALEMBIC_INI)
+    # migrations/env.py uses this URL instead of DATABASE_URL.
     config.attributes["database_url"] = url
     command.upgrade(config, "head")
+
+
+@pytest.fixture(scope="session")
+def engine() -> Iterator[Engine]:
+    """Once per test run: build a fresh test database from the migrations."""
+    url = get_test_database_url()
+    create_database_if_missing(url)
+    engine = create_engine(url)
+    drop_all_tables(engine)
+    run_migrations(url)
     yield engine
     engine.dispose()
 
@@ -71,8 +85,12 @@ def session(engine: Engine) -> Iterator[Session]:
 
 @pytest.fixture
 def client(session: Session) -> Iterator[TestClient]:
-    """Calls the app, which uses the test's session instead of opening its own."""
-    app.dependency_overrides[get_session] = lambda: session
+    """Calls the app. Endpoints get the test's session instead of opening their own."""
+
+    def use_test_session() -> Session:
+        return session
+
+    app.dependency_overrides[get_session] = use_test_session
     yield TestClient(app)
     app.dependency_overrides.clear()
 
