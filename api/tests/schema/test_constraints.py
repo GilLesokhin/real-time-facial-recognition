@@ -41,6 +41,16 @@ def test_building_admin_with_a_building_is_fine(make_user, make_building):
     make_user("ana@example.com", UserRole.BUILDING_ADMIN, make_building())
 
 
+# --- users: unique email, ignoring case ---
+
+
+@pytest.mark.parametrize("second", ["ana@example.com", "ANA@EXAMPLE.COM", "Ana@Example.com"])
+def test_user_emails_are_unique_ignoring_case(make_user, second):
+    make_user("ana@example.com")
+    with pytest.raises(IntegrityError, match="uq_users_email"):
+        make_user(second)
+
+
 # --- access_events: CHECK granted has a person, denied has none ---
 
 
@@ -120,10 +130,33 @@ def test_a_deactivated_terminal_frees_its_name(session, make_building, make_term
 # --- foreign keys: ON DELETE RESTRICT ---
 
 
-def test_a_building_with_terminals_cant_be_hard_deleted(session, make_building, make_terminal):
+@pytest.mark.parametrize("child", ["terminal", "person", "admin"])
+def test_a_building_in_use_cant_be_hard_deleted(session, make_building, make_terminal, make_person, make_user, child):
     building = make_building()
-    make_terminal(building)
+    if child == "terminal":
+        make_terminal(building)
+    if child == "person":
+        make_person(building)
+    if child == "admin":
+        make_user("ana@example.com", UserRole.BUILDING_ADMIN, building)
+
     session.delete(building)
+    with pytest.raises(IntegrityError):
+        session.flush()
+
+
+@pytest.mark.parametrize("parent", ["terminal", "person"])
+def test_access_events_keep_their_terminal_and_person(session, make_building, make_terminal, make_person, parent):
+    building = make_building()
+    terminal = make_terminal(building)
+    person = make_person(building)
+    session.add(event(building, terminal, AccessResult.GRANTED, person))
+    session.flush()
+
+    if parent == "terminal":
+        session.delete(terminal)
+    if parent == "person":
+        session.delete(person)
     with pytest.raises(IntegrityError):
         session.flush()
 
