@@ -22,3 +22,5 @@ Before building a feature, read its ticket and the "Data model", "Backend API" a
 - Each feature is one folder, `api/app/<feature>/`, split into router (HTTP) → service (rules) → db (queries), with tests in `api/tests/<feature>/`. `auth/` is the pattern to copy.
 - Admin endpoints take `admin: CurrentAdmin`.
 - Every schema change gets a new Alembic migration.
+- Each request saves all its changes or none of them. The service function the router calls makes all the changes, then calls `session.commit()` once, as its last step. Nothing else commits. `db.py` functions call `flush()` when they need the new row's id.
+- Services check every rule and return a clear error. They never rely on the database for that. The database also enforces what it can (NOT NULL, CHECK, foreign keys, unique indexes) as a safety net for races and bugs. A broken unique index becomes a 409 in `app/main.py`. Give each new unique index a message in `CONFLICTS` in `app/core/db.py`.

@@ -3,7 +3,11 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import create_engine, pool
 
-import app.users.models  # noqa: F401  registers the users table on Base.metadata
+import app.access.models
+import app.buildings.models
+import app.people.models
+import app.terminals.models
+import app.users.models
 from app.core.config import settings
 from app.core.db import Base
 

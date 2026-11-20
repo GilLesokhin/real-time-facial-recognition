@@ -7,6 +7,7 @@ dependencies = [
     "alembic>=1.20.1",
     "fastapi[standard]>=0.163.1",
     "itsdangerous>=2.2.0",
+    "pgvector>=0.5.1",
     "psycopg[binary]>=3.3.9",
     "pwdlib[argon2]>=0.4.2",
     "pydantic-settings>=2.16.3",
@@ -28,3 +29,7 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "UP"]
 ignore = ["E501", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+# Model imports only register tables on Base.metadata, so they look unused.
+"migrations/env.py" = ["F401"]

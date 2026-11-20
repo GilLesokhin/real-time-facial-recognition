@@ -22,3 +22,12 @@ def test_promotes_an_existing_account_and_keeps_its_password(session: Session, m
     assert admin.id == existing.id
     assert admin.role == UserRole.PLATFORM_ADMIN
     assert verify_password(PASSWORD, admin.password_hash)
+
+
+def test_promoting_a_building_admin_clears_their_building(session: Session, make_user, make_building):
+    make_user("ana@example.com", UserRole.BUILDING_ADMIN, make_building())
+
+    admin = create_admin(session, "ana@example.com", "ignored-password", "Ignored")
+
+    assert admin.role == UserRole.PLATFORM_ADMIN
+    assert admin.building_id is None
