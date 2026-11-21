@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.auth.router import router as auth_router
+from app.buildings.router import router as buildings_router
 from app.core.config import settings
 from app.core.db import CONFLICTS
 
@@ -20,6 +21,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(buildings_router)
 
 
 @app.exception_handler(IntegrityError)
