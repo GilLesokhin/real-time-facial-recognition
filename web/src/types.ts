@@ -28,8 +28,8 @@ export interface User {
   name: string
   email: string
   role: UserRole
-  /** Buildings a Building Admin manages. Empty for unassigned users and Platform Admins (who see all). */
-  building_ids: string[]
+  /** The one building a Building Admin manages. Null for everyone else (Platform Admins see all). */
+  building_id: string | null
   created_at: string
 }
 

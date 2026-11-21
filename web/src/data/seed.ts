@@ -1,17 +1,11 @@
-import type { AccessEvent, Building, Person, Terminal, User } from '../types'
+import type { AccessEvent, Person, Terminal, User } from '../types'
 
 export const seedUsers: User[] = [
-  { id: 'u-avi', name: 'Avi Rosen', email: 'avi@example.com', role: 'platform_admin', building_ids: [], created_at: '2026-10-01T10:00:00Z' },
-  { id: 'u-maya', name: 'Maya Cohen', email: 'maya@example.com', role: 'building_admin', building_ids: ['b-north'], created_at: '2026-10-05T10:00:00Z' },
-  { id: 'u-eli', name: 'Eli Barak', email: 'eli@example.com', role: 'building_admin', building_ids: ['b-harbor', 'b-cedar'], created_at: '2026-10-07T10:00:00Z' },
-  { id: 'u-noa', name: 'Noa Stern', email: 'noa@example.com', role: 'unassigned', building_ids: [], created_at: '2026-11-09T18:20:00Z' },
-  { id: 'u-dan', name: 'Dan Kaplan', email: 'dan@example.com', role: 'unassigned', building_ids: [], created_at: '2026-11-08T09:10:00Z' },
-]
-
-export const seedBuildings: Building[] = [
-  { id: 'b-north', name: 'North Tower', address: '12 Herzl St, Tel Aviv' },
-  { id: 'b-harbor', name: 'Harbor House', address: '4 Ha-Namal St, Haifa' },
-  { id: 'b-cedar', name: 'Cedar Court', address: '88 Jaffa Rd, Jerusalem' },
+  { id: 'u-avi', name: 'Avi Rosen', email: 'avi@example.com', role: 'platform_admin', building_id: null, created_at: '2026-10-01T10:00:00Z' },
+  { id: 'u-maya', name: 'Maya Cohen', email: 'maya@example.com', role: 'building_admin', building_id: 'b-north', created_at: '2026-10-05T10:00:00Z' },
+  { id: 'u-eli', name: 'Eli Barak', email: 'eli@example.com', role: 'building_admin', building_id: 'b-harbor', created_at: '2026-10-07T10:00:00Z' },
+  { id: 'u-noa', name: 'Noa Stern', email: 'noa@example.com', role: 'unassigned', building_id: null, created_at: '2026-11-09T18:20:00Z' },
+  { id: 'u-dan', name: 'Dan Kaplan', email: 'dan@example.com', role: 'unassigned', building_id: null, created_at: '2026-11-08T09:10:00Z' },
 ]
 
 export const seedTerminals: Terminal[] = [

@@ -1,6 +1,6 @@
 # Real Time Facial Recognition: front-end mockup
 
-A React + TypeScript front end for the face-recognition entry system. **Sign-in is real**: sign-up, sign-in, sign-out and "who am I" go to the Python API (`api/`). Everything else (buildings, people, terminals, the access log, the Admins page) is still mock data saved to `localStorage`, until those endpoints exist.
+A React + TypeScript front end for the face-recognition entry system. **Sign-in and buildings are real**: they go to the Python API (`api/`). Everything else (people, terminals, the access log, the Admins page) is still mock data saved to `localStorage`, until those endpoints exist.
 
 ## Run it
 
@@ -16,7 +16,7 @@ Open http://localhost:5173. Vite forwards `/api/*` to the API (see `vite.config.
 Sign in as the Platform Admin you create with `uv run python -m app.users.create_admin`, run from `api/`. New accounts start Unassigned and can't sign in, and the Admins page doesn't use the API yet, so for now other accounts get a role in the database:
 
 ```sql
-UPDATE users SET role = 'building_admin' WHERE email = 'someone@example.com';
+UPDATE users SET role = 'building_admin', building_id = '<building id>' WHERE email = 'someone@example.com';
 ```
 
 "Reset demo data" in the sidebar restores the mock data.

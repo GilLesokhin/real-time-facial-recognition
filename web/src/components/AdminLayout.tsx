@@ -7,7 +7,7 @@ import { Logo } from './Logo'
 
 export function AdminLayout() {
   const { status, user: currentUser, signOut } = useAuth()
-  const { visibleBuildings, isPlatformAdmin, resetDemo } = useStore()
+  const { visibleBuildings, buildingsLoaded, isPlatformAdmin, resetDemo } = useStore()
   const navigate = useNavigate()
   // The building in the URL. On /buildings and /users, the nav links point at the first building.
   const match = useMatch('/buildings/:buildingId/*')
@@ -20,13 +20,15 @@ export function AdminLayout() {
   // Still asking the API whether the session cookie is valid: don't flash the sign-in page.
   if (status === 'loading') return null
   if (!currentUser) return <Navigate to="/login" replace />
+  // Still loading the buildings: don't flash Not found.
+  if (!buildingsLoaded) return null
 
   return (
     <div className="shell">
       <aside className="sidebar">
         <Logo />
 
-        {visibleBuildings.length > 1 ? (
+        {isPlatformAdmin && visibleBuildings.length > 0 ? (
           <label className="field">
             <span className="label">Building</span>
             <select className="select" value={building?.id ?? ''} onChange={(e) => navigate(`/buildings/${e.target.value}/${section}`)}>

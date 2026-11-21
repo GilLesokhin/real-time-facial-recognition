@@ -42,11 +42,11 @@ const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)} KB`
 
 export function TerminalPage() {
   const { terminalId } = useParams()
-  const { state, logEvent } = useStore()
+  const { state, visibleBuildings, logEvent } = useStore()
   const { videoRef, status } = useCamera()
 
   const terminal = state.terminals.find((t) => t.id === terminalId)
-  const building = state.buildings.find((b) => b.id === terminal?.building_id)
+  const building = visibleBuildings.find((b) => b.id === terminal?.building_id)
   const people = state.people.filter((p) => p.building_id === terminal?.building_id)
 
   const [phase, setPhase] = useState<Phase>('idle')
