@@ -15,5 +15,5 @@ class UserBase(BaseModel):
     name: str
     email: EmailStr
     role: UserRole
-    building_ids: list[uuid.UUID] = []
+    building_id: uuid.UUID | None
     created_at: datetime

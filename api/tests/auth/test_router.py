@@ -18,9 +18,9 @@ def test_signup_creates_unassigned_user_in_web_app_shape(client: TestClient):
     r = signup(client)
     assert r.status_code == 201
     body = r.json()
-    assert set(body) == {"id", "name", "email", "role", "building_ids", "created_at"}
+    assert set(body) == {"id", "name", "email", "role", "building_id", "created_at"}
     assert body["role"] == "unassigned"
-    assert body["building_ids"] == []
+    assert body["building_id"] is None
     assert COOKIE not in client.cookies  # signing up doesn't sign you in
 
 

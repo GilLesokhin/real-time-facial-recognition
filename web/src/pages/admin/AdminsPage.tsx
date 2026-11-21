@@ -16,7 +16,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
 
 /** Platform Admin only: everyone who signed up, and what they can access. */
 export function AdminsPage() {
-  const { state, currentUser, isPlatformAdmin, removeUser } = useStore()
+  const { state, currentUser, isPlatformAdmin, visibleBuildings, removeUser } = useStore()
   const [query, setQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<UserRole | ''>('')
   const [buildingFilter, setBuildingFilter] = useState('')
@@ -31,7 +31,7 @@ export function AdminsPage() {
   const users = state.users
     .filter((u) => !roleFilter || u.role === roleFilter)
     // Who can manage the building: its Building Admins plus every Platform Admin.
-    .filter((u) => !buildingFilter || u.role === 'platform_admin' || u.building_ids.includes(buildingFilter))
+    .filter((u) => !buildingFilter || u.role === 'platform_admin' || u.building_id === buildingFilter)
     .filter((u) => !q || `${u.name} ${u.email}`.toLowerCase().includes(q))
     .sort(
       (a, b) =>
@@ -41,7 +41,7 @@ export function AdminsPage() {
   const buildingNames = (u: User) =>
     u.role === 'platform_admin'
       ? 'All buildings'
-      : u.building_ids.map((id) => state.buildings.find((b) => b.id === id)?.name).filter(Boolean).join(', ') || '—'
+      : visibleBuildings.find((b) => b.id === u.building_id)?.name ?? '—'
 
   return (
     <>
@@ -76,7 +76,7 @@ export function AdminsPage() {
             <span className="label">Building</span>
             <select className="select" value={buildingFilter} onChange={(e) => setBuildingFilter(e.target.value)}>
               <option value="">All buildings</option>
-              {state.buildings.map((b) => (
+              {visibleBuildings.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
                 </option>
@@ -95,7 +95,7 @@ export function AdminsPage() {
               <tr>
                 <th className="label">User</th>
                 <th className="label">Role</th>
-                <th className="label">Buildings</th>
+                <th className="label">Building</th>
                 <th className="label">Signed up</th>
                 <th>
                   <span className="visually-hidden">Actions</span>
@@ -169,15 +169,13 @@ export function AdminsPage() {
   )
 }
 
-/** Set a user's role and, for a Building Admin, their buildings. */
+/** Set a user's role and, for a Building Admin, their building. */
 function AccessForm({ user, onClose }: { user: User; onClose: () => void }) {
-  const { state, setUserAccess } = useStore()
+  const { visibleBuildings, setUserAccess } = useStore()
   const [role, setRole] = useState<UserRole>(user.role)
-  const [buildingIds, setBuildingIds] = useState<string[]>(user.building_ids)
+  const [buildingId, setBuildingId] = useState(user.building_id ?? '')
 
-  const needsBuilding = role === 'building_admin' && buildingIds.length === 0
-  const toggle = (id: string) =>
-    setBuildingIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))
+  const needsBuilding = role === 'building_admin' && !buildingId
 
   return (
     <Modal title={`Edit ${user.name}`} onClose={onClose} wide>
@@ -186,7 +184,7 @@ function AccessForm({ user, onClose }: { user: User; onClose: () => void }) {
         onSubmit={(e) => {
           e.preventDefault()
           if (needsBuilding) return
-          setUserAccess(user, role, buildingIds)
+          setUserAccess(user, role, buildingId || null)
           onClose()
         }}
       >
@@ -201,17 +199,18 @@ function AccessForm({ user, onClose }: { user: User; onClose: () => void }) {
         </label>
 
         {role === 'building_admin' && (
-          <fieldset className="field checkbox-list">
-            <legend className="label">Buildings</legend>
-            {state.buildings.map((b) => (
-              <label key={b.id} className="checkbox">
-                <input type="checkbox" checked={buildingIds.includes(b.id)} onChange={() => toggle(b.id)} />
-                {b.name}
-                <span className="small faint">{b.address}</span>
-              </label>
-            ))}
-            {needsBuilding && <span className="small error">Pick at least one building.</span>}
-          </fieldset>
+          <label className="field">
+            <span className="label">Building</span>
+            <select className="select" value={buildingId} onChange={(e) => setBuildingId(e.target.value)}>
+              <option value="">Pick a building</option>
+              {visibleBuildings.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+            {needsBuilding && <span className="small error">Pick a building.</span>}
+          </label>
         )}
         {role === 'platform_admin' && (
           <p className="small faint">A Platform Admin sees and manages every building, including this Admins page.</p>
