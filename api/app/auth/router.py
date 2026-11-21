@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, status
 
 from app.auth import service
-from app.auth.deps import SESSION_USER_ID, CurrentAdmin
+from app.auth.deps import CurrentAdmin
 from app.auth.schemas import (
     LoginRequest,
     LoginResponse,
@@ -24,7 +24,7 @@ def signup(body: SignupRequest, session: SessionDep):
 def login(body: LoginRequest, request: Request, session: SessionDep):
     user = service.log_in(session, body.email, body.password)
     request.session.clear()
-    request.session[SESSION_USER_ID] = str(user.id)
+    request.session["user_id"] = str(user.id)
     return user
 
 
