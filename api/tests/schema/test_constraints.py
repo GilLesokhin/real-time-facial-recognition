@@ -1,12 +1,10 @@
 """The database itself refuses bad rows, whatever the code above it does."""
 
 import pytest
-from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.access.models import AccessEvent, AccessResult
-from app.people.models import Person
 from app.users.models import UserRole
 
 
@@ -159,16 +157,3 @@ def test_access_events_keep_their_terminal_and_person(session, make_building, ma
         session.delete(person)
     with pytest.raises(IntegrityError):
         session.flush()
-
-
-# --- people.photo is deferred ---
-
-
-def test_loading_a_person_doesnt_load_the_photo(session, make_building, make_person):
-    person_id = make_person(make_building()).id
-    session.expunge_all()  # forget the person, so the next get reads the database
-
-    person = session.get(Person, person_id)
-
-    assert "photo" in inspect(person).unloaded
-    assert person.photo == b"jpeg"  # still there when asked for

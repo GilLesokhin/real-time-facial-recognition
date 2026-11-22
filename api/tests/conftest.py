@@ -134,7 +134,7 @@ def make_terminal(session: Session) -> Callable[..., Terminal]:
 @pytest.fixture
 def make_person(session: Session) -> Callable[..., Person]:
     def _make(building: Building, name: str = "Dana Levi") -> Person:
-        person = Person(building_id=building.id, name=name, apartment="4B", photo=b"jpeg", embedding=[0.0] * EMBEDDING_SIZE)
+        person = Person(building_id=building.id, name=name, apartment="4B", embedding=[0.0] * EMBEDDING_SIZE)
         session.add(person)
         session.flush()
         return person
