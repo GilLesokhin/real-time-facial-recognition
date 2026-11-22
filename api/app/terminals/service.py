@@ -31,7 +31,7 @@ def list_terminals(session: Session, building: Building) -> list[Terminal]:
 
 def add_terminal(session: Session, building: Building, name: str) -> Terminal:
     if terminals_db.get_active_terminal_by_name(session, building.id, name):
-        raise HTTPException(409, "This building already has a terminal with this name.")
+        raise HTTPException(409, "A terminal with this name already exists.")
     terminal = terminals_db.add_terminal(session, Terminal(building_id=building.id, name=name))
     session.commit()
     return terminal
@@ -40,7 +40,7 @@ def add_terminal(session: Session, building: Building, name: str) -> Terminal:
 def rename_terminal(session: Session, terminal: Terminal, name: str) -> Terminal:
     same_name = terminals_db.get_active_terminal_by_name(session, terminal.building_id, name)
     if same_name and same_name.id != terminal.id:
-        raise HTTPException(409, "This building already has a terminal with this name.")
+        raise HTTPException(409, "A terminal with this name already exists.")
     terminal.name = name
     session.commit()
     return terminal

@@ -147,7 +147,7 @@ def test_add_rejects_taken_name_ignoring_case(client: TestClient, make_user, mak
     as_platform_admin(client, make_user)
     response = client.post(f"/buildings/{building.id}/terminals", json={"name": "MAIN LOBBY"})
     assert response.status_code == 409
-    assert response.json()["detail"] == "This building already has a terminal with this name."
+    assert response.json()["detail"] == "A terminal with this name already exists."
 
 
 def test_add_allows_same_name_in_another_building(client: TestClient, make_user, make_building, make_terminal):
