@@ -1,26 +1,23 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from './auth'
-import { seedEvents, seedPeople, seedTerminals, seedUsers } from '../data/seed'
+import { seedEvents, seedPeople, seedTerminals } from '../data/seed'
 import { api } from '../lib/api'
 import { newId } from '../lib/format'
 import type { AccessEvent, AccessResult, Building, Person, Terminal, User, UserRole } from '../types'
 
 /**
- * Mock data: everything except sign-in and buildings lives in this store and in localStorage.
- * Each action maps to one backend endpoint (noted beside it). Sign-in (see ./auth) and buildings are real.
+ * Mock data: everything except sign-in, buildings and users lives in this store and in localStorage.
+ * Each action maps to one backend endpoint (noted beside it). Sign-in (see ./auth), buildings and users are real.
  */
 
 interface State {
-  users: User[]
   terminals: Terminal[]
   people: Person[]
   events: AccessEvent[]
 }
 
 type Action =
-  | { type: 'updateUser'; user: User }
-  | { type: 'removeUser'; id: string }
   | { type: 'addTerminal'; terminal: Terminal }
   | { type: 'updateTerminal'; terminal: Terminal }
   | { type: 'removeTerminal'; id: string }
@@ -30,10 +27,9 @@ type Action =
   | { type: 'logEvent'; event: AccessEvent }
   | { type: 'reset' }
 
-const STORAGE_KEY = 'building-entry-demo-v7'
+const STORAGE_KEY = 'building-entry-demo-v8'
 
 const initialState = (): State => ({
-  users: seedUsers,
   terminals: seedTerminals,
   people: seedPeople,
   events: seedEvents,
@@ -53,11 +49,6 @@ const replace = <T extends { id: string }>(list: T[], item: T) => list.map((x) =
 
 function reduce(state: State, action: Action): State {
   switch (action.type) {
-    case 'updateUser':
-      return { ...state, users: replace(state.users, action.user) }
-    case 'removeUser':
-      return { ...state, users: state.users.filter((u) => u.id !== action.id) }
-
     case 'addTerminal':
       return { ...state, terminals: [...state.terminals, action.terminal] }
     case 'updateTerminal':
@@ -78,6 +69,27 @@ function reduce(state: State, action: Action): State {
       return initialState()
   }
 }
+
+// Real API calls for the Admins page, Platform Admin only. Each throws ApiError, e.g. 403 for your own account.
+// Outside the store's state, so the page reloads the list itself after a change.
+
+/** GET /users. Filters are optional. Unassigned users come first, then by name. */
+const listUsers = (filters: { role?: UserRole; building?: string; q?: string } = {}) => {
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value)
+  const query = params.toString()
+  return api<User[]>(query ? `/users?${query}` : '/users')
+}
+
+/** PATCH /users/:id. `buildingId` is used only for a Building Admin. Everyone else gets null. */
+const setUserAccess = (user: User, role: UserRole, buildingId: string | null) =>
+  api<User>(`/users/${user.id}`, {
+    method: 'PATCH',
+    body: { role, building_id: role === 'building_admin' ? buildingId : null },
+  })
+
+/** DELETE /users/:id */
+const removeUser = (id: string) => api(`/users/${id}`, { method: 'DELETE' })
 
 function useStoreValue() {
   const { user: currentUser } = useAuth()
@@ -127,13 +139,9 @@ function useStoreValue() {
       /** Where an admin lands: a Building Admin's building, or the Buildings list for a Platform Admin. */
       homePath: currentUser?.building_id ? `/buildings/${currentUser.building_id}/terminals` : '/buildings',
 
-      // PATCH /users/:id (role + building), DELETE /users/:id. Platform Admin only.
-      setUserAccess: (user: User, role: UserRole, buildingId: string | null) =>
-        dispatch({
-          type: 'updateUser',
-          user: { ...user, role, building_id: role === 'building_admin' ? buildingId : null },
-        }),
-      removeUser: (id: string) => dispatch({ type: 'removeUser', id }),
+      listUsers,
+      setUserAccess,
+      removeUser,
 
       // Real API calls, Platform Admin only. Each throws ApiError, e.g. 409 when the name is taken.
       addBuilding: async (name: string, address: string) => {
