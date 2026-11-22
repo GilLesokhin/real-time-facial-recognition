@@ -14,7 +14,7 @@ def get_user_by_email(session: Session, email: str) -> User | None:
     return session.scalars(select(User).where(func.lower(User.email) == email.lower())).first()
 
 
-def list_users(session: Session, role: UserRole | None, building_id: uuid.UUID | None, q: str | None) -> list[User]:
+def list_users(session: Session, role: UserRole | None, building_id: uuid.UUID | None, search: str | None) -> list[User]:
     """Unassigned users first, since they wait for a decision. Then by name."""
     query = select(User)
     if role is not None:
@@ -22,8 +22,8 @@ def list_users(session: Session, role: UserRole | None, building_id: uuid.UUID |
     if building_id is not None:
         # Everyone who can manage the building: its Building Admins and every Platform Admin.
         query = query.where(or_(User.building_id == building_id, User.role == UserRole.PLATFORM_ADMIN))
-    if q:
-        query = query.where(or_(User.name.icontains(q, autoescape=True), User.email.icontains(q, autoescape=True)))
+    if search:
+        query = query.where(or_(User.name.icontains(search, autoescape=True), User.email.icontains(search, autoescape=True)))
     unassigned_first = case((User.role == UserRole.UNASSIGNED, 0), else_=1)
     query = query.order_by(unassigned_first, func.lower(User.name), User.email)
     return list(session.scalars(query))

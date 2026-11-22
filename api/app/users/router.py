@@ -18,11 +18,11 @@ def list_users(
     session: SessionDep,
     role: UserRole | None = None,
     building: uuid.UUID | None = None,
-    q: Annotated[str | None, Query(max_length=255)] = None,
+    search: Annotated[str | None, Query(max_length=255)] = None,
 ):
     """Every account. `building` keeps the users who can manage it: its Building Admins and all Platform Admins.
-    `q` searches name and email, ignoring case."""
-    return service.list_users(session, role, building, q.strip() if q else None)
+    `search` looks in name and email, ignoring case."""
+    return service.list_users(session, role, building, search.strip() if search else None)
 
 
 @router.patch("/{user_id}", response_model=UserUpdateResponse)

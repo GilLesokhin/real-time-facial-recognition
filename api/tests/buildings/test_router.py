@@ -33,10 +33,10 @@ def test_platform_admin_lists_all_active_buildings_by_name(client: TestClient, s
     session.flush()
     as_platform_admin(client, make_user)
 
-    r = client.get("/buildings")
-    assert r.status_code == 200
-    assert [b["name"] for b in r.json()] == ["cedar Court", "North Tower"]
-    assert set(r.json()[0]) == {"id", "name", "address"}
+    response = client.get("/buildings")
+    assert response.status_code == 200
+    assert [building["name"] for building in response.json()] == ["cedar Court", "North Tower"]
+    assert set(response.json()[0]) == {"id", "name", "address"}
 
 
 def test_building_admin_lists_only_their_building(client: TestClient, make_user, make_building):
@@ -44,8 +44,8 @@ def test_building_admin_lists_only_their_building(client: TestClient, make_user,
     make_building("Cedar Court")
     as_building_admin(client, make_user, mine)
 
-    r = client.get("/buildings")
-    assert [b["id"] for b in r.json()] == [str(mine.id)]
+    response = client.get("/buildings")
+    assert [building["id"] for building in response.json()] == [str(mine.id)]
 
 
 def test_building_admin_of_deactivated_building_lists_nothing(client: TestClient, session: Session, make_user, make_building):
@@ -67,10 +67,10 @@ def test_me_returns_building_id(client: TestClient, make_user, make_building):
 
 def test_platform_admin_adds_building(client: TestClient, make_user):
     as_platform_admin(client, make_user)
-    r = client.post("/buildings", json={"name": "  North Tower ", "address": "12 Herzl St"})
-    assert r.status_code == 201
-    assert r.json()["name"] == "North Tower"  # trimmed
-    assert [b["name"] for b in client.get("/buildings").json()] == ["North Tower"]
+    response = client.post("/buildings", json={"name": "  North Tower ", "address": "12 Herzl St"})
+    assert response.status_code == 201
+    assert response.json()["name"] == "North Tower"  # trimmed
+    assert [building["name"] for building in client.get("/buildings").json()] == ["North Tower"]
 
 
 def test_add_rejects_empty_name(client: TestClient, make_user):
@@ -81,9 +81,9 @@ def test_add_rejects_empty_name(client: TestClient, make_user):
 def test_add_rejects_taken_name_ignoring_case(client: TestClient, make_user, make_building):
     make_building("North Tower")
     as_platform_admin(client, make_user)
-    r = client.post("/buildings", json={"name": "north tower", "address": ""})
-    assert r.status_code == 409
-    assert r.json()["detail"] == "A building with this name already exists."
+    response = client.post("/buildings", json={"name": "north tower", "address": ""})
+    assert response.status_code == 409
+    assert response.json()["detail"] == "A building with this name already exists."
 
 
 def test_add_allows_name_of_deactivated_building(client: TestClient, session: Session, make_user, make_building):
@@ -105,9 +105,9 @@ def test_building_admin_cannot_add(client: TestClient, make_user, make_building)
 def test_platform_admin_edits_building(client: TestClient, make_user, make_building):
     building = make_building("North Tower")
     as_platform_admin(client, make_user)
-    r = client.patch(f"/buildings/{building.id}", json={"address": "1 New St"})
-    assert r.status_code == 200
-    assert r.json() == {"id": str(building.id), "name": "North Tower", "address": "1 New St"}
+    response = client.patch(f"/buildings/{building.id}", json={"address": "1 New St"})
+    assert response.status_code == 200
+    assert response.json() == {"id": str(building.id), "name": "North Tower", "address": "1 New St"}
 
 
 def test_edit_can_change_case_of_own_name(client: TestClient, make_user, make_building):
@@ -161,7 +161,7 @@ def test_delete_deactivates_building_terminals_and_people(
     assert not terminal.is_active
     assert not person.is_active
     assert other_terminal.is_active
-    assert [b["name"] for b in client.get("/buildings").json()] == ["Cedar Court"]
+    assert [building["name"] for building in client.get("/buildings").json()] == ["Cedar Court"]
 
 
 def test_delete_twice_is_404(client: TestClient, make_user, make_building):

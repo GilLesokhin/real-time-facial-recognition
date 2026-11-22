@@ -43,7 +43,7 @@ class AccessEvent(Base):
     terminal_id: Mapped[uuid.UUID]
     person_id: Mapped[uuid.UUID | None]
     result: Mapped[AccessResult] = mapped_column(
-        Enum(AccessResult, name="access_result", values_callable=lambda results: [r.value for r in results])
+        Enum(AccessResult, name="access_result", values_callable=lambda results: [result.value for result in results])
     )
     # Similarity to the nearest person, for debugging denials. Null when no one is enrolled.
     score: Mapped[float | None]

@@ -14,8 +14,8 @@ NO_BUILDING = {
 }
 
 
-def list_users(session: Session, role: UserRole | None, building_id: uuid.UUID | None, q: str | None) -> list[User]:
-    return users_db.list_users(session, role, building_id, q)
+def list_users(session: Session, role: UserRole | None, building_id: uuid.UUID | None, search: str | None) -> list[User]:
+    return users_db.list_users(session, role, building_id, search)
 
 
 def get_other_user(session: Session, admin: User, user_id: uuid.UUID, self_error: str) -> User:
