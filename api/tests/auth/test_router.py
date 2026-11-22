@@ -15,9 +15,9 @@ def signup(client: TestClient, email: str = "ana@example.com", password: str = P
 
 
 def test_signup_creates_unassigned_user_in_web_app_shape(client: TestClient):
-    r = signup(client)
-    assert r.status_code == 201
-    body = r.json()
+    response = signup(client)
+    assert response.status_code == 201
+    body = response.json()
     assert set(body) == {"id", "name", "email", "role", "building_id", "created_at"}
     assert body["role"] == "unassigned"
     assert body["building_id"] is None
@@ -38,9 +38,9 @@ def test_signup_rejects_short_password(client: TestClient):
 
 def test_login_sets_session_cookie_and_me_returns_user(client: TestClient, make_user):
     make_user("admin@example.com")
-    r = login(client, "admin@example.com")
-    assert r.status_code == 200
-    set_cookie = r.headers["set-cookie"].lower()
+    response = login(client, "admin@example.com")
+    assert response.status_code == 200
+    set_cookie = response.headers["set-cookie"].lower()
     assert set_cookie.startswith(f"{COOKIE}=")
     assert "httponly" in set_cookie
     assert "samesite=lax" in set_cookie

@@ -30,7 +30,7 @@ def test_a_duplicate_the_service_misses_is_409(client: TestClient, monkeypatch):
     assert client.post("/auth/signup", json=body).status_code == 201
     monkeypatch.setattr(users_db, "get_user_by_email", lambda session, email: None)
 
-    r = client.post("/auth/signup", json=body)
+    response = client.post("/auth/signup", json=body)
 
-    assert r.status_code == 409
-    assert r.json()["detail"] == CONFLICTS["uq_users_email"]
+    assert response.status_code == 409
+    assert response.json()["detail"] == CONFLICTS["uq_users_email"]

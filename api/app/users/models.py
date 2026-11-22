@@ -34,7 +34,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[UserRole] = mapped_column(
         # Store the values ("building_admin"), not the names.
-        Enum(UserRole, name="user_role", values_callable=lambda roles: [r.value for r in roles]),
+        Enum(UserRole, name="user_role", values_callable=lambda roles: [role.value for role in roles]),
         default=UserRole.UNASSIGNED,
         server_default=UserRole.UNASSIGNED.value,
     )
