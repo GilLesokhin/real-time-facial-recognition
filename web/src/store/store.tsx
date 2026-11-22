@@ -1,36 +1,31 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from './auth'
-import { seedEvents, seedPeople, seedTerminals } from '../data/seed'
+import { seedEvents, seedPeople } from '../data/seed'
 import { api } from '../lib/api'
 import { newId } from '../lib/format'
-import type { AccessEvent, AccessResult, Building, Person, Terminal, User, UserRole } from '../types'
+import type { AccessEvent, AccessResult, Building, Person, Terminal, TerminalListItem, User, UserRole } from '../types'
 
 /**
- * Mock data: everything except sign-in, buildings and users lives in this store and in localStorage.
- * Each action maps to one backend endpoint (noted beside it). Sign-in (see ./auth), buildings and users are real.
+ * Mock data: people and access events live in this store and in localStorage.
+ * Each action maps to one backend endpoint (noted beside it). Sign-in (see ./auth), buildings, users and terminals are real.
  */
 
 interface State {
-  terminals: Terminal[]
   people: Person[]
   events: AccessEvent[]
 }
 
 type Action =
-  | { type: 'addTerminal'; terminal: Terminal }
-  | { type: 'updateTerminal'; terminal: Terminal }
-  | { type: 'removeTerminal'; id: string }
   | { type: 'addPerson'; person: Person }
   | { type: 'updatePerson'; person: Person }
   | { type: 'removePerson'; id: string }
   | { type: 'logEvent'; event: AccessEvent }
   | { type: 'reset' }
 
-const STORAGE_KEY = 'building-entry-demo-v8'
+const STORAGE_KEY = 'building-entry-demo-v9'
 
 const initialState = (): State => ({
-  terminals: seedTerminals,
   people: seedPeople,
   events: seedEvents,
 })
@@ -49,13 +44,6 @@ const replace = <T extends { id: string }>(list: T[], item: T) => list.map((x) =
 
 function reduce(state: State, action: Action): State {
   switch (action.type) {
-    case 'addTerminal':
-      return { ...state, terminals: [...state.terminals, action.terminal] }
-    case 'updateTerminal':
-      return { ...state, terminals: replace(state.terminals, action.terminal) }
-    case 'removeTerminal':
-      return { ...state, terminals: state.terminals.filter((t) => t.id !== action.id) }
-
     case 'addPerson':
       return { ...state, people: [action.person, ...state.people] }
     case 'updatePerson':
@@ -90,6 +78,22 @@ const setUserAccess = (user: User, role: UserRole, buildingId: string | null) =>
 
 /** DELETE /users/:id */
 const removeUser = (id: string) => api(`/users/${id}`, { method: 'DELETE' })
+
+// Real API calls for terminals, any admin who can reach the building. Each throws ApiError, e.g. 409 when the name is taken.
+// Outside the store's state, so the page reloads the list itself after a change.
+
+/** GET /buildings/:id/terminals. By name. */
+const listTerminals = (buildingId: string) => api<TerminalListItem[]>(`/buildings/${buildingId}/terminals`)
+
+/** POST /buildings/:id/terminals */
+const addTerminal = (buildingId: string, name: string) =>
+  api<Terminal>(`/buildings/${buildingId}/terminals`, { method: 'POST', body: { name } })
+
+/** PATCH /terminals/:id. Rename only. */
+const renameTerminal = (id: string, name: string) => api<Terminal>(`/terminals/${id}`, { method: 'PATCH', body: { name } })
+
+/** DELETE /terminals/:id. Its key stops working. Its past checks stay in the access log. */
+const removeTerminal = (id: string) => api(`/terminals/${id}`, { method: 'DELETE' })
 
 function useStoreValue() {
   const { user: currentUser } = useAuth()
@@ -161,11 +165,10 @@ function useStoreValue() {
         await reloadBuildings()
       },
 
-      // POST /buildings/:id/terminals, PATCH /terminals/:id, DELETE /terminals/:id
-      addTerminal: (buildingId: string, name: string) =>
-        dispatch({ type: 'addTerminal', terminal: { id: newId('t'), building_id: buildingId, name } }),
-      updateTerminal: (terminal: Terminal) => dispatch({ type: 'updateTerminal', terminal }),
-      removeTerminal: (id: string) => dispatch({ type: 'removeTerminal', id }),
+      listTerminals,
+      addTerminal,
+      renameTerminal,
+      removeTerminal,
 
       // POST /buildings/:id/people, PATCH /people/:id, DELETE /people/:id
       addPerson: (input: Omit<Person, 'id' | 'created_at'>) =>

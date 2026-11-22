@@ -11,6 +11,18 @@ export interface Terminal {
   name: string
 }
 
+/** One row of the Terminals page. */
+export interface TerminalListItem extends Terminal {
+  // GIL-79 (Identify + access log): the terminal's newest event, if any.
+  // latest_event: { result: AccessResult; created_at: string } | null
+}
+
+/** From GET /terminals/:id/key: the terminal's key, with the names the door tab shows. */
+export interface TerminalKey extends Terminal {
+  key: string
+  building_name: string
+}
+
 export interface Person {
   id: string
   building_id: string
