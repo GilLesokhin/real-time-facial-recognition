@@ -1,7 +1,7 @@
 import uuid
 
 from sqlalchemy import ForeignKey, Index, String, UniqueConstraint, func, true
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.buildings.models import Building
 from app.core.db import Base
@@ -18,6 +18,9 @@ class Terminal(Base):
     building_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(Building.id, ondelete="RESTRICT"), index=True)
     name: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(default=True, server_default=true())
+
+    # Loaded on first use. Never None: building_id is NOT NULL with a foreign key.
+    building: Mapped[Building] = relationship()
 
 
 # One active terminal per name in a building, ignoring case.

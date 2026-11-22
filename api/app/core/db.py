@@ -36,5 +36,5 @@ SessionDep = Annotated[Session, Depends(get_session)]
 CONFLICTS = {
     "uq_users_email": "An account with this email already exists.",
     "uq_buildings_active_name": "A building with this name already exists.",
-    "uq_terminals_active_name": "This building already has a terminal with this name.",
+    "uq_terminals_active_name": "A terminal with this name already exists.",
 }

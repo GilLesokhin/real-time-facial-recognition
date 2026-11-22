@@ -2,10 +2,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useCamera } from '../../hooks/useCamera'
 import { useFaceDetection, type FaceShot } from '../../hooks/useFaceDetection'
+import { api, ApiError } from '../../lib/api'
 import { toScreenBox, type ScreenBox } from '../../lib/face/detector'
 import { formatTime } from '../../lib/format'
 import { useStore } from '../../store/store'
-import type { Person } from '../../types'
+import type { Person, TerminalKey } from '../../types'
 
 type Phase = 'idle' | 'checking' | 'granted' | 'denied'
 
@@ -40,13 +41,64 @@ function Silhouette() {
 
 const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)} KB`
 
+/** The terminal's sign-in. Its `key` lives only in this tab's memory: never in localStorage or the URL. */
+type SignIn =
+  | { status: 'loading' }
+  | { status: 'needsAdmin' }
+  | { status: 'notFound' }
+  | { status: 'offline' }
+  | { status: 'ready'; terminal: TerminalKey }
+
+/**
+ * GET /terminals/:id/key with the admin cookie, once. It returns the key and the names to show.
+ * Identify (GIL-79) will send only the key. A reload starts again, so it needs an admin signed in in this browser.
+ */
+function useTerminalSignIn(terminalId: string | undefined): SignIn {
+  const [signIn, setSignIn] = useState<SignIn>({ status: 'loading' })
+
+  useEffect(() => {
+    if (!terminalId) return
+    let cancelled = false
+    api<TerminalKey>(`/terminals/${terminalId}/key`)
+      .then((terminal) => !cancelled && setSignIn({ status: 'ready', terminal }))
+      .catch((err) => {
+        if (cancelled) return
+        if (err instanceof ApiError && err.status === 401) setSignIn({ status: 'needsAdmin' })
+        else if (err instanceof ApiError && err.status === 404) setSignIn({ status: 'notFound' })
+        else setSignIn({ status: 'offline' })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [terminalId])
+
+  return signIn
+}
+
+const SIGN_IN_FAILED = {
+  needsAdmin: 'Open this terminal from the admin panel.',
+  notFound: 'This terminal no longer exists.',
+  offline: "Can't reach the server. Reload the page to try again.",
+}
+
+function SignInFailed({ status }: { status: keyof typeof SIGN_IN_FAILED }) {
+  return (
+    <div className="center-page">
+      <p className="muted">{SIGN_IN_FAILED[status]}</p>
+      <Link to={status === 'needsAdmin' ? '/login' : '/'} className="btn">
+        {status === 'needsAdmin' ? 'Sign in' : 'Home'}
+      </Link>
+    </div>
+  )
+}
+
 export function TerminalPage() {
   const { terminalId } = useParams()
-  const { state, visibleBuildings, logEvent } = useStore()
+  const { state, logEvent } = useStore()
   const { videoRef, status } = useCamera()
+  const signIn = useTerminalSignIn(terminalId)
 
-  const terminal = state.terminals.find((t) => t.id === terminalId)
-  const building = visibleBuildings.find((b) => b.id === terminal?.building_id)
+  const terminal = signIn.status === 'ready' ? signIn.terminal : null
   const people = state.people.filter((p) => p.building_id === terminal?.building_id)
 
   const [phase, setPhase] = useState<Phase>('idle')
@@ -132,16 +184,9 @@ export function TerminalPage() {
     setBox(toScreenBox(live.best.boundingBox, live.video, { width: el.clientWidth, height: el.clientHeight }, true))
   }, [live, phase])
 
-  if (!terminal || !building) {
-    return (
-      <div className="center-page">
-        <p className="muted">This terminal no longer exists.</p>
-        <Link to="/" className="btn">
-          Home
-        </Link>
-      </div>
-    )
-  }
+  if (signIn.status === 'loading') return null
+  if (signIn.status !== 'ready') return <SignInFailed status={signIn.status} />
+  const shown = signIn.terminal
 
   const message = {
     idle: live?.best ? 'Hold still…' : 'Look at the camera',
@@ -157,8 +202,8 @@ export function TerminalPage() {
     <div className="terminal">
       <header className="terminal-header">
         <div>
-          <span className="label">{building.name}</span>
-          <h1 className="title">{terminal.name}</h1>
+          <span className="label">{shown.building_name}</span>
+          <h1 className="title">{shown.name}</h1>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
           <span className="title">{formatTime(now)}</span>
@@ -200,7 +245,7 @@ export function TerminalPage() {
           <div key={r.id} className="request">
             {r.thumbUrl ? <img src={r.thumbUrl} alt="" className="request-thumb" /> : <div className="request-thumb" />}
             <div className="request-body">
-              <code className="small">POST /terminals/{terminal.id}/identify</code>
+              <code className="small">POST /terminals/{shown.id}/identify</code>
               {r.shot ? (
                 <>
                   <span className="small muted">

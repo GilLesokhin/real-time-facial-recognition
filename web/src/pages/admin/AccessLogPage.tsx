@@ -1,16 +1,27 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Avatar } from '../../components/Avatar'
 import { formatDateTime } from '../../lib/format'
 import { useCurrentBuilding, useStore } from '../../store/store'
-import type { AccessResult } from '../../types'
+import type { AccessResult, Terminal } from '../../types'
 
 export function AccessLogPage() {
-  const { state } = useStore()
+  const { state, listTerminals } = useStore()
   const currentBuilding = useCurrentBuilding()
   const [terminalFilter, setTerminalFilter] = useState('')
   const [resultFilter, setResultFilter] = useState<AccessResult | ''>('')
+  // Real terminals from the API, for the filter and the names. The events are still mock data.
+  const [terminals, setTerminals] = useState<Terminal[]>([])
 
-  const terminals = state.terminals.filter((t) => t.building_id === currentBuilding.id)
+  useEffect(() => {
+    let cancelled = false
+    listTerminals(currentBuilding.id)
+      .then((list) => !cancelled && setTerminals(list))
+      .catch(() => !cancelled && setTerminals([]))
+    return () => {
+      cancelled = true
+    }
+  }, [listTerminals, currentBuilding.id])
+
   const events = state.events.filter(
     (ev) =>
       ev.building_id === currentBuilding.id &&
@@ -69,7 +80,7 @@ export function AccessLogPage() {
             <tbody>
               {events.map((ev) => {
                 const person = ev.person_id ? state.people.find((p) => p.id === ev.person_id) : undefined
-                const terminal = state.terminals.find((t) => t.id === ev.terminal_id)
+                const terminal = terminals.find((t) => t.id === ev.terminal_id)
                 return (
                   <tr key={ev.id}>
                     <td className="muted">{formatDateTime(ev.at)}</td>

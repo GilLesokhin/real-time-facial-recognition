@@ -1,14 +1,4 @@
-import type { AccessEvent, Person, Terminal } from '../types'
-
-export const seedTerminals: Terminal[] = [
-  { id: 't-north-lobby', building_id: 'b-north', name: 'Main lobby' },
-  { id: 't-north-garage', building_id: 'b-north', name: 'Garage' },
-  { id: 't-north-back', building_id: 'b-north', name: 'Back door' },
-  { id: 't-harbor-lobby', building_id: 'b-harbor', name: 'Main lobby' },
-  { id: 't-harbor-pool', building_id: 'b-harbor', name: 'Pool gate' },
-  { id: 't-cedar-lobby', building_id: 'b-cedar', name: 'Main lobby' },
-  { id: 't-cedar-garage', building_id: 'b-cedar', name: 'Garage' },
-]
+import type { AccessEvent, Person } from '../types'
 
 const person = (
   id: string,
