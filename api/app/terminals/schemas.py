@@ -1,6 +1,9 @@
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.access.models import AccessResult
 
 
 class TerminalCreateRequest(BaseModel):
@@ -27,19 +30,19 @@ class TerminalBase(BaseModel):
     name: str
 
 
-# GIL-79 (Identify + access log): each terminal's latest event. To restore, uncomment and import
-# `datetime` and `AccessResult` (from app.access.models).
-# class LatestEvent(BaseModel):
-#     model_config = ConfigDict(from_attributes=True)
-#
-#     result: AccessResult
-#     created_at: datetime
+class TerminalAccessEvent(BaseModel):
+    """A terminal's newest check, for the Last check column."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    result: AccessResult
+    created_at: datetime
 
 
 class TerminalListItem(TerminalBase):
     """One terminal in the GET /buildings/{id}/terminals list."""
 
-    # GIL-79: latest_event: LatestEvent | None
+    latest_event: TerminalAccessEvent | None
 
 
 class TerminalCreateResponse(TerminalBase):
