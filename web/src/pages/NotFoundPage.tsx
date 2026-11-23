@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 
-/** Also shown inside the admin panel for a building you can't reach, the same as the API's 404. */
+/** Also shown inside the admin panel for a building you can't manage, the same as the API's 404. */
 export function NotFound() {
   return (
     <div className="card card-pad form-grid">

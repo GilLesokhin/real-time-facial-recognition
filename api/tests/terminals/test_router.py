@@ -53,7 +53,7 @@ def test_admin_endpoints_need_sign_in(client: TestClient, make_building, make_te
     assert client.get(f"/terminals/{terminal.id}/key").status_code == 401
 
 
-def test_building_admin_cant_reach_another_buildings_terminals(client: TestClient, make_user, make_building, make_terminal):
+def test_building_admin_cant_manage_another_buildings_terminals(client: TestClient, make_user, make_building, make_terminal):
     mine = make_building("North Tower")
     other = make_building("Cedar Court")
     terminal = make_terminal(other)

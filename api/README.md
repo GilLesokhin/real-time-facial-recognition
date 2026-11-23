@@ -17,10 +17,11 @@ The Python backend: FastAPI, SQLAlchemy, Alembic and Postgres, managed with [uv]
    uv run python -c "import secrets; print(secrets.token_urlsafe(32))"
    ```
 
-4. Install the packages, build the database and create the Platform Admin from `.env`.
+4. Install the packages, download the face models into `face_models/`, build the database and create the Platform Admin from `.env`.
 
    ```bash
    uv sync
+   uv run python -m app.faces.download_models
    uv run alembic upgrade head
    uv run python -m app.users.create_admin
    ```
@@ -43,7 +44,7 @@ The tests use `TEST_DATABASE_URL`, never `DATABASE_URL`. Each run creates that d
 
 ## Endpoints
 
-Every endpoint is listed at http://localhost:8000/docs. To protect an endpoint so only signed-in admins can call it, add `admin: CurrentAdmin` (from `app/auth/deps.py`) to its parameters.
+Every endpoint is listed at http://localhost:8000/docs. To protect an endpoint so only signed-in admins can call it, add `admin: SignedAdmin` (from `app/auth/deps.py`) to its parameters.
 
 ## Code map
 

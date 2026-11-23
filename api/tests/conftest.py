@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, make_url, text
 from sqlalchemy.orm import Session
 
+# Sets OpenCV's pixel limit. It must load before any test imports cv2.
+import app.faces.embedding  # noqa: F401
 from app.buildings.models import Building
 from app.core.config import settings
 from app.core.db import get_session
@@ -134,7 +136,7 @@ def make_terminal(session: Session) -> Callable[..., Terminal]:
 @pytest.fixture
 def make_person(session: Session) -> Callable[..., Person]:
     def _make(building: Building, name: str = "Dana Levi") -> Person:
-        person = Person(building_id=building.id, name=name, apartment="4B", photo=b"jpeg", embedding=[0.0] * EMBEDDING_SIZE)
+        person = Person(building_id=building.id, name=name, apartment="4B", embedding=[0.0] * EMBEDDING_SIZE)
         session.add(person)
         session.flush()
         return person

@@ -41,7 +41,7 @@ export function AdminsPage() {
     if (!isPlatformAdmin) return
     // Ignore an answer that arrives after the filters changed again.
     let cancelled = false
-    const filters = { role: roleFilter || undefined, building: buildingFilter, q: query.trim() }
+    const filters = { role: roleFilter || undefined, building: buildingFilter, search: query.trim() }
     Promise.all([listUsers(filters), listUsers()])
       .then(([filtered, all]) => {
         if (cancelled) return
@@ -146,7 +146,7 @@ export function AdminsPage() {
                   <tr key={u.id}>
                     <td>
                       <div className="cell-row">
-                        <Avatar name={u.name} photo={null} />
+                        <Avatar name={u.name} />
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span>
                             {u.name} {isSelf && <span className="small faint">(you)</span>}

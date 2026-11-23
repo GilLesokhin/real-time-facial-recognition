@@ -1,36 +1,69 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Camera, ImageUp, Trash2, User } from 'lucide-react'
 import { useCamera } from '../hooks/useCamera'
+import { createFaceDetector, enrollmentCrop, grabFrame, type FaceDetector } from '../lib/face/detector'
 
 interface PhotoPickerProps {
-  value: string | null
-  onChange: (photo: string | null) => void
+  /** The face crop JPEG to send, or null when none is picked. Only this picker changes it. */
+  value: Blob | null
+  onChange: (photo: Blob | null) => void
+  hint?: string
 }
 
-/** Shrinks an uploaded image so photos stay small enough for localStorage. */
-function resizeImage(file: File, maxWidth = 480): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file)
-    const img = new Image()
-    img.onload = () => {
-      const scale = Math.min(1, maxWidth / img.width)
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.round(img.width * scale)
-      canvas.height = Math.round(img.height * scale)
-      canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height)
-      URL.revokeObjectURL(url)
-      resolve(canvas.toDataURL('image/jpeg', 0.85))
+/**
+ * BlazeFace in IMAGE mode, for one still image at a time. GPU first, CPU if that fails.
+ * The same model the door runs, so enrollment and door crops match.
+ */
+function useStillFaceDetector() {
+  const [detector, setDetector] = useState<FaceDetector | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    let created: FaceDetector | null = null
+    createFaceDetector('GPU', undefined, 'IMAGE')
+      .catch(() => createFaceDetector('CPU', undefined, 'IMAGE'))
+      .then((d) => {
+        if (cancelled) return d.close()
+        created = d
+        setDetector(d)
+      })
+      .catch(() => !cancelled && setFailed(true))
+    return () => {
+      cancelled = true
+      created?.close()
     }
-    img.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error('Could not read that image'))
-    }
-    img.src = url
-  })
+  }, [])
+
+  return { detector, failed }
 }
 
-function WebcamCapture({ onCapture, onCancel }: { onCapture: (photo: string) => void; onCancel: () => void }) {
-  const { videoRef, status, capture } = useCamera()
+function WebcamCapture({
+  detector,
+  onCapture,
+  onCancel,
+}: {
+  detector: FaceDetector
+  onCapture: (photo: Blob) => void
+  onCancel: () => void
+}) {
+  const { videoRef, status } = useCamera()
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const capture = async () => {
+    const video = videoRef.current
+    if (!video || !video.videoWidth) return
+    setBusy(true)
+    try {
+      onCapture(await enrollmentCrop(detector, grabFrame(video)))
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="photo-row">
       <div className="photo-frame">
@@ -42,36 +75,47 @@ function WebcamCapture({ onCapture, onCancel }: { onCapture: (photo: string) => 
         )}
       </div>
       <div className="photo-buttons">
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={status !== 'live'}
-          onClick={() => {
-            const photo = capture()
-            if (photo) onCapture(photo)
-          }}
-        >
+        <button type="button" className="btn btn-primary" disabled={status !== 'live' || busy} onClick={capture}>
           <Camera size={16} /> Capture
         </button>
         <button type="button" className="btn" onClick={onCancel}>
           Cancel
         </button>
       </div>
+      {error && <p className="small error photo-hint">{error}</p>}
       <p className="small faint photo-hint">Face the camera, one person only, good light.</p>
     </div>
   )
 }
 
-export function PhotoPicker({ value, onChange }: PhotoPickerProps) {
+/** Picks a face photo from the webcam or a file, and turns it into the face crop the server embeds. */
+export function PhotoPicker({ value, onChange, hint = 'A clear, front-facing photo of one face.' }: PhotoPickerProps) {
+  const { detector, failed } = useStillFaceDetector()
+  // A URL to show the picked photo. Made where the photo is picked, and freed when it's replaced or the picker closes.
+  const [preview, setPreview] = useState<string | null>(null)
+  const previewRef = useRef<string | null>(null)
+  useEffect(() => () => {
+    if (previewRef.current) URL.revokeObjectURL(previewRef.current)
+    previewRef.current = null
+  }, [])
+  const pick = (photo: Blob | null) => {
+    if (previewRef.current) URL.revokeObjectURL(previewRef.current)
+    previewRef.current = photo ? URL.createObjectURL(photo) : null
+    setPreview(previewRef.current)
+    onChange(photo)
+  }
   const [usingCamera, setUsingCamera] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
 
-  if (usingCamera) {
+  if (usingCamera && detector) {
     return (
       <WebcamCapture
+        detector={detector}
         onCapture={(photo) => {
-          onChange(photo)
+          pick(photo)
+          setError(null)
           setUsingCamera(false)
         }}
         onCancel={() => setUsingCamera(false)}
@@ -79,21 +123,42 @@ export function PhotoPicker({ value, onChange }: PhotoPickerProps) {
     )
   }
 
+  const upload = async (file: File) => {
+    if (!detector) return
+    setBusy(true)
+    let image: ImageBitmap | null = null
+    try {
+      // Turns the photo upright from its EXIF data, as a phone camera intended.
+      image = await createImageBitmap(file).catch(() => {
+        throw new Error("Couldn't read that image.")
+      })
+      pick(await enrollmentCrop(detector, image))
+      setError(null)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      image?.close()
+      setBusy(false)
+    }
+  }
+
+  const ready = !!detector && !busy
+
   return (
     <div className="photo-row">
       <div className="photo-frame">
-        {value ? <img src={value} alt="Face photo" /> : <User size={64} strokeWidth={1} />}
+        {preview ? <img src={preview} alt="Face photo" /> : <User size={64} strokeWidth={1} />}
         {value && (
-          <button type="button" className="icon-btn danger" aria-label="Remove photo" onClick={() => onChange(null)}>
+          <button type="button" className="icon-btn danger" aria-label="Remove photo" onClick={() => pick(null)}>
             <Trash2 size={16} />
           </button>
         )}
       </div>
       <div className="photo-buttons">
-        <button type="button" className="btn" onClick={() => setUsingCamera(true)}>
+        <button type="button" className="btn" disabled={!ready} onClick={() => setUsingCamera(true)}>
           <Camera size={20} /> Take with webcam
         </button>
-        <button type="button" className="btn" onClick={() => fileInput.current?.click()}>
+        <button type="button" className="btn" disabled={!ready} onClick={() => fileInput.current?.click()}>
           <ImageUp size={20} /> Upload photo
         </button>
         <input
@@ -101,21 +166,17 @@ export function PhotoPicker({ value, onChange }: PhotoPickerProps) {
           type="file"
           accept="image/*"
           className="visually-hidden"
-          onChange={async (e) => {
+          onChange={(e) => {
             const file = e.target.files?.[0]
             e.target.value = ''
-            if (!file) return
-            try {
-              onChange(await resizeImage(file))
-              setError(null)
-            } catch (err) {
-              setError((err as Error).message)
-            }
+            if (file) void upload(file)
           }}
         />
       </div>
+      {failed && <p className="small error photo-hint">The face detector didn't load. Reload the page.</p>}
+      {!detector && !failed && <p className="small faint photo-hint">Loading the face detector…</p>}
       {error && <p className="small error photo-hint">{error}</p>}
-      <p className="small faint photo-hint">A clear, front-facing photo of one face.</p>
+      <p className="small faint photo-hint">{hint}</p>
     </div>
   )
 }

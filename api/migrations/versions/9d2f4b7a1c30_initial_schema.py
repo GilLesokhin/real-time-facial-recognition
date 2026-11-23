@@ -93,7 +93,6 @@ def upgrade() -> None:
         sa.Column("building_id", sa.Uuid(), nullable=False),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("apartment", sa.String(length=255), nullable=False),
-        sa.Column("photo", sa.LargeBinary(), nullable=False),
         sa.Column("embedding", pgvector.sqlalchemy.Vector(dim=128), nullable=False),
         sa.Column("is_active", sa.Boolean(), server_default=sa.true(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),

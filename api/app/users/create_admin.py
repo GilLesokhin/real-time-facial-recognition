@@ -19,7 +19,7 @@ def create_admin(session: Session, email: str, password: str, name: str) -> User
     if user is None:
         user = users_db.add_user(session, User(name=name, email=email, password_hash=hash_password(password)))
     user.role = UserRole.PLATFORM_ADMIN
-    user.building_id = None  # a Platform Admin reaches every building
+    user.building_id = None  # a Platform Admin manages every building
     session.commit()
     return user
 

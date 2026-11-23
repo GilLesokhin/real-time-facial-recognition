@@ -8,7 +8,7 @@ from app.users import db as users_db
 from app.users.models import User, UserRole
 
 
-def current_admin(request: Request, session: SessionDep) -> User:
+def signed_admin(request: Request, session: SessionDep) -> User:
     """Loads the user on every request, so a deleted or demoted user is locked out at once."""
     raw_id = request.session.get("user_id")
     user = None
@@ -23,11 +23,11 @@ def current_admin(request: Request, session: SessionDep) -> User:
     return user
 
 
-# Short form for routes: `admin: CurrentAdmin`.
-CurrentAdmin = Annotated[User, Depends(current_admin)]
+# Short form for routes: `admin: SignedAdmin`.
+SignedAdmin = Annotated[User, Depends(signed_admin)]
 
 
-def current_platform_admin(admin: CurrentAdmin) -> User:
+def current_platform_admin(admin: SignedAdmin) -> User:
     if admin.role != UserRole.PLATFORM_ADMIN:
         raise HTTPException(403, "Platform Admin access required.")
     return admin

@@ -9,26 +9,26 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.buildings.deps import reachable_building
+from app.buildings.deps import manageable_building
 from app.users.models import UserRole
 
 
 def assert_refused(session: Session, building_id: uuid.UUID, admin) -> None:
     with pytest.raises(HTTPException) as error:
-        reachable_building(building_id, admin, session)
+        manageable_building(building_id, admin, session)
     assert error.value.status_code == 404
 
 
-def test_platform_admin_reaches_any_active_building(session: Session, make_user, make_building):
+def test_platform_admin_manages_any_active_building(session: Session, make_user, make_building):
     admin = make_user("platform@example.com")
     building = make_building()
-    assert reachable_building(building.id, admin, session) == building
+    assert manageable_building(building.id, admin, session) == building
 
 
-def test_building_admin_reaches_their_building(session: Session, make_user, make_building):
+def test_building_admin_manages_their_building(session: Session, make_user, make_building):
     mine = make_building()
     admin = make_user("building@example.com", UserRole.BUILDING_ADMIN, mine)
-    assert reachable_building(mine.id, admin, session) == mine
+    assert manageable_building(mine.id, admin, session) == mine
 
 
 def test_building_admin_is_refused_another_building(session: Session, make_user, make_building):

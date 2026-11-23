@@ -15,15 +15,19 @@ export type Delegate = 'GPU' | 'CPU'
 /** BlazeFace returns its 6 keypoints in this order. "Right" and "left" are the person's own, not the screen's. */
 export const KEYPOINT_NAMES = ['right eye', 'left eye', 'nose tip', 'mouth', 'right ear', 'left ear']
 
-/** Loads the WASM runtime and the model. Call `.close()` when done. */
+/**
+ * Loads the WASM runtime and the model. Call `.close()` when done.
+ * VIDEO mode is for the door's camera loop (`detectForVideo`). IMAGE mode is for one still image (`detect`), for enrollment.
+ */
 export function createFaceDetector(
   delegate: Delegate = DEFAULT_SETTINGS.delegate,
   minDetectionConfidence = DEFAULT_SETTINGS.minConfidence,
+  runningMode: 'VIDEO' | 'IMAGE' = 'VIDEO',
 ) {
   // FilesetResolver.forVisionTasks(folder) would guess file names in a folder; we pass the exact URLs instead.
   return FaceDetector.createFromOptions(
     { wasmLoaderPath, wasmBinaryPath },
-    { baseOptions: { modelAssetPath: modelPath, delegate }, runningMode: 'VIDEO', minDetectionConfidence },
+    { baseOptions: { modelAssetPath: modelPath, delegate }, runningMode, minDetectionConfidence },
   )
 }
 
@@ -63,8 +67,8 @@ export const DEFAULT_SETTINGS: DetectionSettings = {
   windowMs: 1000,
   minFacePx: 128, // 112 px model input plus some headroom
   minSteady: 0.3, // 3 of 10 frames
-  cropSize: 256,
-  cropMargin: 1.6,
+  cropSize: 320, // the face fills about 160 px of it
+  cropMargin: 2.0,
   jpegQuality: 0.85,
 }
 
@@ -90,38 +94,42 @@ export function bestDetection(detections: Detection[]): Detection | null {
 
 /**
  * ORIENTATION RULE: every face image the server sees is mirrored (selfie view): terminal crops,
- * webcam enrollment and uploaded photos. Only consistency matters for matching; mirrored was picked
- * because it looks natural. Live <video> previews are flipped with CSS; stored images are already
- * mirrored, so never CSS-flip them again.
+ * webcam enrollment and uploaded photos. All of them go through cropFace, which mirrors. Only
+ * consistency matters for matching; mirrored was picked because it looks natural. Live <video>
+ * previews are flipped with CSS; crops are already mirrored, so never CSS-flip them again.
  */
 export function mirror(ctx: CanvasRenderingContext2D, width: number) {
   ctx.translate(width, 0)
   ctx.scale(-1, 1)
 }
 
-/** Draws any image mirrored onto a canvas, scaled to at most `maxWidth`. For uploads. */
-export function mirroredCanvas(img: CanvasImageSource & { width: number; height: number }, maxWidth = Infinity) {
-  const scale = Math.min(1, maxWidth / img.width)
+/** Anything a face can be found in and cropped from: the door's camera, a captured frame, an uploaded photo. */
+export type FaceSource = HTMLVideoElement | HTMLCanvasElement | HTMLImageElement | ImageBitmap
+
+/** The source's own size in pixels, the space BlazeFace's boxes are in. */
+function sourceSize(source: FaceSource) {
+  if (source instanceof HTMLVideoElement) return { width: source.videoWidth, height: source.videoHeight }
+  if (source instanceof HTMLImageElement) return { width: source.naturalWidth, height: source.naturalHeight }
+  return { width: source.width, height: source.height }
+}
+
+/** The video's current frame on a canvas, not mirrored. Detect and crop on it, so both see the same frame. */
+export function grabFrame(video: HTMLVideoElement): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
-  canvas.width = Math.round(img.width * scale)
-  canvas.height = Math.round(img.height * scale)
-  const ctx = canvas.getContext('2d')
-  if (ctx) {
-    mirror(ctx, canvas.width)
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-  }
+  canvas.width = video.videoWidth
+  canvas.height = video.videoHeight
+  canvas.getContext('2d')?.drawImage(video, 0, 0)
   return canvas
 }
 
 /** Draws a loose square around the face onto a `size` canvas, mirrored (see the orientation rule). */
 export function cropFace(
-  video: HTMLVideoElement,
+  source: FaceSource,
   box: BoundingBox,
   size = DEFAULT_SETTINGS.cropSize,
   margin = DEFAULT_SETTINGS.cropMargin,
 ): HTMLCanvasElement {
-  const vw = video.videoWidth
-  const vh = video.videoHeight
+  const { width: vw, height: vh } = sourceSize(source)
   const side = Math.min(Math.max(box.width, box.height) * margin, vw, vh)
   const cx = box.originX + box.width / 2
   const cy = box.originY + box.height / 2
@@ -135,13 +143,33 @@ export function cropFace(
   if (ctx) {
     // Flip the destination, so the source rectangle above stays in camera coordinates.
     mirror(ctx, size)
-    ctx.drawImage(video, sx, sy, side, side, 0, 0, size, size)
+    ctx.drawImage(source, sx, sy, side, side, 0, 0, size, size)
   }
   return canvas
 }
 
 export const toJpeg = (canvas: HTMLCanvasElement, quality = DEFAULT_SETTINGS.jpegQuality) =>
   new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality))
+
+/**
+ * Enrollment: the one face in a still image, cropped and encoded exactly like the door's crops.
+ * `detector` must be in IMAGE mode. Throws an Error whose message is shown to the admin.
+ */
+export async function enrollmentCrop(
+  detector: FaceDetector,
+  image: Exclude<FaceSource, HTMLVideoElement>,
+  settings = DEFAULT_SETTINGS,
+): Promise<Blob> {
+  // The detector already drops faces under its minimum confidence.
+  const faces = detector.detect(image).detections.filter((d) => d.boundingBox)
+  if (faces.length === 0) throw new Error('No face found. Use a clear, front-facing photo.')
+  if (faces.length > 1) throw new Error('More than one face. Use a photo of one person.')
+  const face = faces[0]!
+  if (!isCloseEnough(face, settings.minFacePx)) throw new Error('The face is too small. Move closer, or use a bigger photo.')
+  const jpeg = await toJpeg(cropFace(image, face.boundingBox!, settings.cropSize, settings.cropMargin), settings.jpegQuality)
+  if (!jpeg) throw new Error("Couldn't prepare the photo. Try again.")
+  return jpeg
+}
 
 export interface ScreenBox {
   left: number

@@ -9,7 +9,7 @@ from app.users.models import User, UserRole
 
 # Why a role other than Building Admin can't have a building.
 NO_BUILDING = {
-    UserRole.PLATFORM_ADMIN: "A Platform Admin reaches every building. Set building_id to null.",
+    UserRole.PLATFORM_ADMIN: "A Platform Admin manages every building. Set building_id to null.",
     UserRole.UNASSIGNED: "An Unassigned user has no building. Set building_id to null.",
 }
 
