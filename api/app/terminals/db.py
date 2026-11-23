@@ -1,8 +1,10 @@
 import uuid
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import Session
 
+from app.access.models import AccessEvent
 from app.terminals.models import Terminal
 
 
@@ -37,17 +39,12 @@ def add_terminal(session: Session, terminal: Terminal) -> Terminal:
     return terminal
 
 
-# GIL-79 (Identify + access log): each terminal's latest event for the Terminals list. No events exist before identify.
-# To restore: uncomment this and add back the imports
-#   from sqlalchemy.dialects.postgresql import distinct_on
-#   from app.access.models import AccessEvent
-
-# def latest_events(session: Session, building_id: uuid.UUID) -> dict[uuid.UUID, AccessEvent]:
-#     """The newest access event of each terminal in the building, by terminal id."""
-#     query = (
-#         select(AccessEvent)
-#         .where(AccessEvent.building_id == building_id)
-#         .ext(distinct_on(AccessEvent.terminal_id))
-#         .order_by(AccessEvent.terminal_id, AccessEvent.created_at.desc())
-#     )
-#     return {event.terminal_id: event for event in session.scalars(query)}
+def latest_events(session: Session, building_id: uuid.UUID) -> dict[uuid.UUID, AccessEvent]:
+    """The newest access event of each terminal in the building, by terminal id."""
+    query = (
+        select(AccessEvent)
+        .where(AccessEvent.building_id == building_id)
+        .ext(distinct_on(AccessEvent.terminal_id))
+        .order_by(AccessEvent.terminal_id, AccessEvent.created_at.desc())
+    )
+    return {event.terminal_id: event for event in session.scalars(query)}
