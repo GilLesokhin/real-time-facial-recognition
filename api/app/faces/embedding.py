@@ -20,7 +20,7 @@ YUNET_PATH = MODELS_DIR / "face_detection_yunet_2023mar.onnx"
 SFACE_PATH = MODELS_DIR / "face_recognition_sface_2021dec.onnx"
 
 # SFace aligns every face to 112x112, so a smaller image has too few pixels.
-MIN_SIDE = 112
+MIN_IMAGE_SIZE = 112
 # The browser already checked the face, so YuNet can be less strict than its 0.9 default.
 SCORE_THRESHOLD = 0.7
 
@@ -33,25 +33,23 @@ class FaceError(Exception):
 # and FastAPI runs sync endpoints in a thread pool, so one lock guards loading and every use.
 _lock = threading.Lock()
 _detector: cv2.FaceDetectorYN | None = None
-_recognizer: cv2.FaceRecognizerSF | None = None
+_embedder: cv2.FaceRecognizerSF | None = None
 
 
 def _load_models() -> tuple[cv2.FaceDetectorYN, cv2.FaceRecognizerSF]:
     """Call only while holding _lock."""
-    global _detector, _recognizer
-    if _detector is None or _recognizer is None:
+    global _detector, _embedder
+    if _detector is None or _embedder is None:
         if not YUNET_PATH.exists() or not SFACE_PATH.exists():
             raise RuntimeError("Face models missing. From api/, run: uv run python -m app.faces.download_models")
         # The input size is set again for each image in embed_face.
         _detector = cv2.FaceDetectorYN.create(str(YUNET_PATH), "", (320, 320), SCORE_THRESHOLD)
-        _recognizer = cv2.FaceRecognizerSF.create(str(SFACE_PATH), "")
-    return _detector, _recognizer
+        _embedder = cv2.FaceRecognizerSF.create(str(SFACE_PATH), "")
+    return _detector, _embedder
 
 
 def _decode(photo: bytes) -> np.ndarray:
     """The photo as a BGR image."""
-    if not photo:
-        raise FaceError("The file is not an image.")
     try:
         image = cv2.imdecode(np.frombuffer(photo, np.uint8), cv2.IMREAD_COLOR)
     except cv2.error:
@@ -68,11 +66,11 @@ def embed_face(photo: bytes) -> list[float]:
     """
     image = _decode(photo)
     height, width = image.shape[:2]
-    if min(height, width) < MIN_SIDE:
-        raise FaceError(f"The photo is too small. It must be at least {MIN_SIDE} px on each side.")
+    if height < MIN_IMAGE_SIZE or width < MIN_IMAGE_SIZE:
+        raise FaceError(f"The photo is too small. It must be at least {MIN_IMAGE_SIZE} px on each side.")
 
     with _lock:
-        detector, recognizer = _load_models()
+        detector, embedder = _load_models()
         detector.setInputSize((width, height))
         _, faces = detector.detect(image)
         # Each row of faces is one face: box, 5 landmarks, score.
@@ -80,8 +78,8 @@ def embed_face(photo: bytes) -> list[float]:
             raise FaceError("No face found in the photo.")
         if len(faces) > 1:
             raise FaceError("More than one face in the photo. Use a photo of one person.")
-        aligned = recognizer.alignCrop(image, faces[0])
-        feature = recognizer.feature(aligned)
+        aligned = embedder.alignCrop(image, faces[0])
+        feature = embedder.feature(aligned)
 
     embedding = feature.flatten()
     embedding = embedding / np.linalg.norm(embedding)
