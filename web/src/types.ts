@@ -23,12 +23,12 @@ export interface TerminalKey extends Terminal {
   building_name: string
 }
 
+/** Someone allowed through the door. The server keeps only their face embedding, never a photo. */
 export interface Person {
   id: string
   building_id: string
   name: string
-  unit: string
-  photo: string | null
+  apartment: string
   created_at: string
 }
 

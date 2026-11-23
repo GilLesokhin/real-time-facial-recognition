@@ -10,14 +10,17 @@ export class ApiError extends Error {
 
 /**
  * Calls the API through the Vite proxy (`/api` → http://localhost:8000).
+ * A `FormData` body is sent as multipart, with the browser's own Content-Type. Any other body is sent as JSON.
  */
 export async function api<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
+  const { body } = options
+  const isForm = body instanceof FormData
   let res: Response
   try {
     res = await fetch(`/api${path}`, {
       method: options.method ?? 'GET',
-      headers: options.body === undefined ? undefined : { 'Content-Type': 'application/json' },
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      headers: body === undefined || isForm ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     })
   } catch {
     throw new ApiError(0, "Can't reach the server.")

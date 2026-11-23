@@ -2,25 +2,29 @@ import { useEffect, useState } from 'react'
 import { Avatar } from '../../components/Avatar'
 import { formatDateTime } from '../../lib/format'
 import { useCurrentBuilding, useStore } from '../../store/store'
-import type { AccessResult, Terminal } from '../../types'
+import type { AccessResult, Person, Terminal } from '../../types'
 
 export function AccessLogPage() {
-  const { state, listTerminals } = useStore()
+  const { state, listTerminals, listPeople } = useStore()
   const currentBuilding = useCurrentBuilding()
   const [terminalFilter, setTerminalFilter] = useState('')
   const [resultFilter, setResultFilter] = useState<AccessResult | ''>('')
-  // Real terminals from the API, for the filter and the names. The events are still mock data.
+  // Real terminals and people from the API, for the filter and the names. The events are still mock data.
   const [terminals, setTerminals] = useState<Terminal[]>([])
+  const [people, setPeople] = useState<Person[]>([])
 
   useEffect(() => {
     let cancelled = false
     listTerminals(currentBuilding.id)
       .then((list) => !cancelled && setTerminals(list))
       .catch(() => !cancelled && setTerminals([]))
+    listPeople(currentBuilding.id)
+      .then((list) => !cancelled && setPeople(list))
+      .catch(() => !cancelled && setPeople([]))
     return () => {
       cancelled = true
     }
-  }, [listTerminals, currentBuilding.id])
+  }, [listTerminals, listPeople, currentBuilding.id])
 
   const events = state.events.filter(
     (ev) =>
@@ -79,7 +83,7 @@ export function AccessLogPage() {
             </thead>
             <tbody>
               {events.map((ev) => {
-                const person = ev.person_id ? state.people.find((p) => p.id === ev.person_id) : undefined
+                const person = ev.person_id ? people.find((p) => p.id === ev.person_id) : undefined
                 const terminal = terminals.find((t) => t.id === ev.terminal_id)
                 return (
                   <tr key={ev.id}>
@@ -87,7 +91,7 @@ export function AccessLogPage() {
                     <td>
                       {person ? (
                         <div className="cell-row">
-                          <Avatar name={person.name} photo={person.photo} size={32} />
+                          <Avatar name={person.name} size={32} />
                           {person.name}
                         </div>
                       ) : (

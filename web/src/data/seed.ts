@@ -1,26 +1,4 @@
-import type { AccessEvent, Person } from '../types'
-
-const person = (
-  id: string,
-  building_id: string,
-  name: string,
-  unit: string,
-  created_at: string,
-): Person => ({ id, building_id, name, unit, photo: null, created_at })
-
-export const seedPeople: Person[] = [
-  person('p-1', 'b-north', 'Dana Levi', 'Apt 4B', '2026-11-02T10:00:00Z'),
-  person('p-2', 'b-north', 'Omer Ben-David', 'Apt 7A', '2026-11-01T10:00:00Z'),
-  person('p-3', 'b-north', 'Noa Shapira', 'Apt 2C', '2026-10-30T10:00:00Z'),
-  person('p-4', 'b-north', 'Yossi Katz', 'Apt 11D', '2026-10-28T10:00:00Z'),
-  person('p-5', 'b-north', 'Rina Avraham', 'Apt 5F', '2026-10-25T10:00:00Z'),
-  person('p-6', 'b-north', 'Tal Mizrahi', 'Apt 9B', '2026-10-21T10:00:00Z'),
-  person('p-7', 'b-north', 'Shira Gold', 'Apt 3A', '2026-10-18T10:00:00Z'),
-  person('p-8', 'b-north', 'Amit Peretz', 'Apt 6E', '2026-10-14T10:00:00Z'),
-  person('p-9', 'b-harbor', 'Lior Friedman', 'Apt 1A', '2026-10-20T10:00:00Z'),
-  person('p-10', 'b-harbor', 'Michal Azoulay', 'Apt 8C', '2026-10-19T10:00:00Z'),
-  person('p-11', 'b-cedar', 'Gal Shalom', 'Apt 2B', '2026-10-15T10:00:00Z'),
-]
+import type { AccessEvent } from '../types'
 
 export const seedEvents: AccessEvent[] = [
   { id: 'ev-1', building_id: 'b-north', terminal_id: 't-north-lobby', result: 'granted', person_id: 'p-1', at: '2026-11-09T16:04:12Z' },

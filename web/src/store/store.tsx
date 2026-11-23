@@ -1,32 +1,25 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from './auth'
-import { seedEvents, seedPeople } from '../data/seed'
+import { seedEvents } from '../data/seed'
 import { api } from '../lib/api'
 import { newId } from '../lib/format'
 import type { AccessEvent, AccessResult, Building, Person, Terminal, TerminalListItem, User, UserRole } from '../types'
 
 /**
- * Mock data: people and access events live in this store and in localStorage.
- * Each action maps to one backend endpoint (noted beside it). Sign-in (see ./auth), buildings, users and terminals are real.
+ * Mock data: access events live in this store and in localStorage, until GIL-79 (Identify + access log).
+ * Sign-in (see ./auth), buildings, users, terminals and people are real.
  */
 
 interface State {
-  people: Person[]
   events: AccessEvent[]
 }
 
-type Action =
-  | { type: 'addPerson'; person: Person }
-  | { type: 'updatePerson'; person: Person }
-  | { type: 'removePerson'; id: string }
-  | { type: 'logEvent'; event: AccessEvent }
-  | { type: 'reset' }
+type Action = { type: 'logEvent'; event: AccessEvent } | { type: 'reset' }
 
-const STORAGE_KEY = 'building-entry-demo-v9'
+const STORAGE_KEY = 'building-entry-demo-v10'
 
 const initialState = (): State => ({
-  people: seedPeople,
   events: seedEvents,
 })
 
@@ -40,17 +33,8 @@ const loadState = (): State => {
   return initialState()
 }
 
-const replace = <T extends { id: string }>(list: T[], item: T) => list.map((x) => (x.id === item.id ? item : x))
-
 function reduce(state: State, action: Action): State {
   switch (action.type) {
-    case 'addPerson':
-      return { ...state, people: [action.person, ...state.people] }
-    case 'updatePerson':
-      return { ...state, people: replace(state.people, action.person) }
-    case 'removePerson':
-      return { ...state, people: state.people.filter((p) => p.id !== action.id) }
-
     case 'logEvent':
       return { ...state, events: [action.event, ...state.events].slice(0, 500) }
     case 'reset':
@@ -62,7 +46,7 @@ function reduce(state: State, action: Action): State {
 // Outside the store's state, so the page reloads the list itself after a change.
 
 /** GET /users. Filters are optional. Unassigned users come first, then by name. */
-const listUsers = (filters: { role?: UserRole; building?: string; q?: string } = {}) => {
+const listUsers = (filters: { role?: UserRole; building?: string; search?: string } = {}) => {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value)
   const query = params.toString()
@@ -94,6 +78,42 @@ const renameTerminal = (id: string, name: string) => api<Terminal>(`/terminals/$
 
 /** DELETE /terminals/:id. Its key stops working. Its past checks stay in the access log. */
 const removeTerminal = (id: string) => api(`/terminals/${id}`, { method: 'DELETE' })
+
+// Real API calls for people, any admin who can manage the building. Each throws ApiError:
+// 413 for a photo over 1 MB, 422 for a photo with no face or more than one.
+// Outside the store's state, so the page reloads the list itself after a change.
+
+/** The text fields of the person form. */
+export interface PersonFields {
+  name: string
+  apartment: string
+}
+
+/** Multipart body. `photo` is the face crop JPEG from PhotoPicker. */
+const personForm = (fields: PersonFields, photo: Blob | null) => {
+  const form = new FormData()
+  form.set('name', fields.name)
+  form.set('apartment', fields.apartment)
+  if (photo) form.set('photo', photo, 'face.jpg')
+  return form
+}
+
+/** GET /buildings/:id/people. By name. `search` looks in name and apartment. */
+const listPeople = (buildingId: string, search = '') => {
+  const query = search.trim() ? `?${new URLSearchParams({ search: search.trim() })}` : ''
+  return api<Person[]>(`/buildings/${buildingId}/people${query}`)
+}
+
+/** POST /buildings/:id/people. The server keeps the face embedding and discards the photo. */
+const addPerson = (buildingId: string, fields: PersonFields, photo: Blob) =>
+  api<Person>(`/buildings/${buildingId}/people`, { method: 'POST', body: personForm(fields, photo) })
+
+/** PATCH /people/:id. A new photo replaces the face. Without one, the face stays. */
+const updatePerson = (id: string, fields: PersonFields, photo: Blob | null) =>
+  api<Person>(`/people/${id}`, { method: 'PATCH', body: personForm(fields, photo) })
+
+/** DELETE /people/:id. The door stops letting them in. Their past checks stay in the access log. */
+const removePerson = (id: string) => api(`/people/${id}`, { method: 'DELETE' })
 
 function useStoreValue() {
   const { user: currentUser } = useAuth()
@@ -128,7 +148,7 @@ function useStoreValue() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
     } catch {
-      // Quota exceeded (large photos) or storage blocked: keep working in memory.
+      // Storage blocked or full: keep working in memory.
     }
   }, [state])
 
@@ -170,11 +190,10 @@ function useStoreValue() {
       renameTerminal,
       removeTerminal,
 
-      // POST /buildings/:id/people, PATCH /people/:id, DELETE /people/:id
-      addPerson: (input: Omit<Person, 'id' | 'created_at'>) =>
-        dispatch({ type: 'addPerson', person: { ...input, id: newId('p'), created_at: new Date().toISOString() } }),
-      updatePerson: (person: Person) => dispatch({ type: 'updatePerson', person }),
-      removePerson: (id: string) => dispatch({ type: 'removePerson', id }),
+      listPeople,
+      addPerson,
+      updatePerson,
+      removePerson,
 
       // Written by the backend inside POST /terminals/:id/identify
       logEvent: (terminal: Terminal, result: AccessResult, personId: string | null) =>

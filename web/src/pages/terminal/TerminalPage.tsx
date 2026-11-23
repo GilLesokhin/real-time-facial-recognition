@@ -94,16 +94,29 @@ function SignInFailed({ status }: { status: keyof typeof SIGN_IN_FAILED }) {
 
 export function TerminalPage() {
   const { terminalId } = useParams()
-  const { state, logEvent } = useStore()
+  const { logEvent, listPeople } = useStore()
   const { videoRef, status } = useCamera()
   const signIn = useTerminalSignIn(terminalId)
 
   const terminal = signIn.status === 'ready' ? signIn.terminal : null
-  const people = state.people.filter((p) => p.building_id === terminal?.building_id)
+  // Demo only, until GIL-79 (Identify + access log): the building's people, for the "recognize as" list.
+  // Read with the admin cookie that opened this tab. The real door never lists people.
+  const [people, setPeople] = useState<Person[]>([])
+  const buildingId = terminal?.building_id
+  useEffect(() => {
+    if (!buildingId) return
+    let cancelled = false
+    listPeople(buildingId)
+      .then((list) => !cancelled && setPeople(list))
+      .catch(() => !cancelled && setPeople([]))
+    return () => {
+      cancelled = true
+    }
+  }, [listPeople, buildingId])
 
   const [phase, setPhase] = useState<Phase>('idle')
   const [match, setMatch] = useState<Person | null>(null)
-  const [simulateAs, setSimulateAs] = useState(people[0]?.id ?? UNKNOWN)
+  const [simulateAs, setSimulateAs] = useState(UNKNOWN)
   const [requests, setRequests] = useState<SentRequest[]>([])
   const [now, setNow] = useState(() => new Date())
   const timers = useRef<number[]>([])
@@ -274,7 +287,7 @@ export function TerminalPage() {
         <select className="select" value={simulateAs} onChange={(e) => setSimulateAs(e.target.value)}>
           {people.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name} · {p.unit}
+              {p.name} · {p.apartment}
             </option>
           ))}
           <option value={UNKNOWN}>Unknown face</option>
