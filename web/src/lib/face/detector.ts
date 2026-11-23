@@ -163,7 +163,7 @@ export async function enrollmentCrop(
   // The detector already drops faces under its minimum confidence.
   const faces = detector.detect(image).detections.filter((d) => d.boundingBox)
   if (faces.length === 0) throw new Error('No face found. Use a clear, front-facing photo.')
-  if (faces.length > 1) throw new Error('More than one face. Use a photo of one person.')
+  if (faces.length > 1) throw new Error('This photo shows more than one face. Retake it with only one person in view.')
   const face = faces[0]!
   if (!isCloseEnough(face, settings.minFacePx)) throw new Error('The face is too small. Move closer, or use a bigger photo.')
   const jpeg = await toJpeg(cropFace(image, face.boundingBox!, settings.cropSize, settings.cropMargin), settings.jpegQuality)
