@@ -17,3 +17,6 @@ dist/
 .mypy_cache/
 .coverage
 htmlcov/
+
+# Face models (download: uv run python -m app.faces.download_models)
+face_models/
