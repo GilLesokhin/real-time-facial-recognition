@@ -12,7 +12,7 @@ from app.faces.embedding import (
 )
 from app.people.models import EMBEDDING_SIZE
 
-# NASA portraits from Wikimedia Commons (public domain), cropped like the browser does: 320x320, mirrored.
+# NASA portraits from Wikimedia Commons (public domain), cropped to 320x320 like the browser does.
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 FACE = FIXTURES / "armstrong_1.jpg"
 SAME_PERSON = FIXTURES / "armstrong_2.jpg"
