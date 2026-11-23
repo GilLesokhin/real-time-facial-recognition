@@ -3,26 +3,26 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException
 
-from app.auth.deps import CurrentAdmin
-from app.buildings.deps import can_reach
+from app.auth.deps import SignedAdmin
+from app.buildings.deps import can_manage
 from app.core.db import SessionDep
 from app.terminals import db as terminals_db
 from app.terminals.models import Terminal
 
 
-def reachable_terminal(terminal_id: uuid.UUID, admin: CurrentAdmin, session: SessionDep) -> Terminal:
-    """The `{terminal_id}` in the URL, if it's active and the admin can reach its building.
+def manageable_terminal(terminal_id: uuid.UUID, admin: SignedAdmin, session: SessionDep) -> Terminal:
+    """The `{terminal_id}` in the URL, if it's active and the admin can manage its building.
 
-    404 for a terminal you can't reach, so the answer doesn't reveal that it exists.
+    404 for a terminal you can't manage, so the answer doesn't reveal that it exists.
     """
     terminal = terminals_db.get_active_terminal(session, terminal_id)
-    if terminal is None or not terminal.building.is_active or not can_reach(admin, terminal.building_id):
+    if terminal is None or not terminal.building.is_active or not can_manage(admin, terminal.building_id):
         raise HTTPException(404, "Terminal not found.")
     return terminal
 
 
-# Short form for admin routes with `{terminal_id}` in the path: `terminal: ReachableTerminal`.
-ReachableTerminal = Annotated[Terminal, Depends(reachable_terminal)]
+# Short form for admin routes with `{terminal_id}` in the path: `terminal: ManageableTerminal`.
+ManageableTerminal = Annotated[Terminal, Depends(manageable_terminal)]
 
 
 # GIL-79 (Identify + access log): the guard for terminal-only endpoints. Identify is the first to use it.

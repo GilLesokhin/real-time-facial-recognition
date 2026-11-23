@@ -44,7 +44,7 @@ The tests use `TEST_DATABASE_URL`, never `DATABASE_URL`. Each run creates that d
 
 ## Endpoints
 
-Every endpoint is listed at http://localhost:8000/docs. To protect an endpoint so only signed-in admins can call it, add `admin: CurrentAdmin` (from `app/auth/deps.py`) to its parameters.
+Every endpoint is listed at http://localhost:8000/docs. To protect an endpoint so only signed-in admins can call it, add `admin: SignedAdmin` (from `app/auth/deps.py`) to its parameters.
 
 ## Code map
 

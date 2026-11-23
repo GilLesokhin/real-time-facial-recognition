@@ -79,7 +79,7 @@ const setUserAccess = (user: User, role: UserRole, buildingId: string | null) =>
 /** DELETE /users/:id */
 const removeUser = (id: string) => api(`/users/${id}`, { method: 'DELETE' })
 
-// Real API calls for terminals, any admin who can reach the building. Each throws ApiError, e.g. 409 when the name is taken.
+// Real API calls for terminals, any admin who can manage the building. Each throws ApiError, e.g. 409 when the name is taken.
 // Outside the store's state, so the page reloads the list itself after a change.
 
 /** GET /buildings/:id/terminals. By name. */
@@ -98,7 +98,7 @@ const removeTerminal = (id: string) => api(`/terminals/${id}`, { method: 'DELETE
 function useStoreValue() {
   const { user: currentUser } = useAuth()
   const [state, dispatch] = useReducer(reduce, undefined, loadState)
-  // From GET /buildings: only the buildings this admin can reach.
+  // From GET /buildings: only the buildings this admin can manage.
   // Tagged with the user, so a list loaded for someone else never shows after a new sign-in.
   const [loaded, setLoaded] = useState<{ userId: string; buildings: Building[] } | null>(null)
   const buildings = currentUser && loaded?.userId === currentUser.id ? loaded.buildings : null
@@ -138,7 +138,7 @@ function useStoreValue() {
       currentUser,
       isPlatformAdmin: currentUser?.role === 'platform_admin',
       buildingsLoaded: buildings !== null,
-      /** The buildings this admin can reach: all for a Platform Admin, their one building for a Building Admin. */
+      /** The buildings this admin can manage: all for a Platform Admin, their one building for a Building Admin. */
       visibleBuildings: buildings ?? [],
       /** Where an admin lands: a Building Admin's building, or the Buildings list for a Platform Admin. */
       homePath: currentUser?.building_id ? `/buildings/${currentUser.building_id}/terminals` : '/buildings',
@@ -210,7 +210,7 @@ export function useStore() {
   return store
 }
 
-/** The building in the URL (`/buildings/:buildingId/...`). AdminLayout shows Not found before a page can ask for one you can't reach. */
+/** The building in the URL (`/buildings/:buildingId/...`). AdminLayout shows Not found before a page can ask for one you can't manage. */
 export function useCurrentBuilding() {
   const { buildingId } = useParams()
   const building = useStore().visibleBuildings.find((b) => b.id === buildingId)

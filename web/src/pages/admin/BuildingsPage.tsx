@@ -14,7 +14,7 @@ const errorMessage = (err: unknown) => {
   return "Can't reach the server. Try again in a moment."
 }
 
-/** Every admin sees the buildings they can reach. Only a Platform Admin can add, edit or delete. */
+/** Every admin sees the buildings they can manage. Only a Platform Admin can add, edit or delete. */
 export function BuildingsPage() {
   const { visibleBuildings, isPlatformAdmin, removeBuilding } = useStore()
   const [dialog, setDialog] = useState<Dialog | null>(null)

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, status
 
 from app.auth import service
-from app.auth.deps import CurrentAdmin
+from app.auth.deps import SignedAdmin
 from app.auth.schemas import (
     LoginRequest,
     LoginResponse,
@@ -34,5 +34,5 @@ def logout(request: Request) -> None:
 
 
 @router.get("/me", response_model=MeResponse)
-def me(admin: CurrentAdmin):
+def me(admin: SignedAdmin):
     return admin

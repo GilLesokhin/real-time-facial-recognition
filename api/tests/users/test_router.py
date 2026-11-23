@@ -138,7 +138,7 @@ def test_other_roles_cannot_have_a_building(client: TestClient, make_user, make_
 
     response = client.patch(f"/users/{user.id}", json={"role": "platform_admin", "building_id": str(building.id)})
     assert response.status_code == 422
-    assert response.json()["detail"] == "A Platform Admin reaches every building. Set building_id to null."
+    assert response.json()["detail"] == "A Platform Admin manages every building. Set building_id to null."
 
     response = client.patch(f"/users/{user.id}", json={"role": "unassigned", "building_id": str(building.id)})
     assert response.status_code == 422
