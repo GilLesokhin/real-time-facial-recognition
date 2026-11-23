@@ -3,6 +3,7 @@ import { ExternalLink, MonitorSmartphone, Pencil, Plus, Trash2 } from 'lucide-re
 import { ConfirmModal } from '../../components/ConfirmModal'
 import { Modal } from '../../components/Modal'
 import { ApiError } from '../../lib/api'
+import { formatDateTime } from '../../lib/format'
 import { useCurrentBuilding, useStore } from '../../store/store'
 import type { Terminal, TerminalListItem } from '../../types'
 
@@ -73,7 +74,7 @@ export function TerminalsPage() {
             <thead>
               <tr>
                 <th className="label">Terminal</th>
-                {/* GIL-79: <th className="label">Last check</th> */}
+                <th className="label">Last check</th>
                 <th>
                   <span className="visually-hidden">Actions</span>
                 </th>
@@ -90,7 +91,6 @@ export function TerminalsPage() {
                       {t.name}
                     </div>
                   </td>
-                  {/* GIL-79 (Identify + access log): uncomment with latest_event, and import formatDateTime.
                   <td>
                     {t.latest_event ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -101,7 +101,6 @@ export function TerminalsPage() {
                       <span className="faint">No checks yet</span>
                     )}
                   </td>
-                  */}
                   <td>
                     <div className="row-actions">
                       <button type="button" className="btn btn-sm" onClick={() => openTerminal(t)}>

@@ -13,8 +13,8 @@ export interface Terminal {
 
 /** One row of the Terminals page. */
 export interface TerminalListItem extends Terminal {
-  // GIL-79 (Identify + access log): the terminal's newest event, if any.
-  // latest_event: { result: AccessResult; created_at: string } | null
+  /** The terminal's newest check, or null when it has none. */
+  latest_event: { result: AccessResult; created_at: string } | null
 }
 
 /** From GET /terminals/:id/key: the terminal's key, with the names the door tab shows. */
@@ -47,11 +47,23 @@ export interface User {
 
 export type AccessResult = 'granted' | 'denied'
 
+/** One row of the Access log, from GET /buildings/:id/access-log. The server adds the names. */
 export interface AccessEvent {
   id: string
-  building_id: string
   terminal_id: string
-  result: AccessResult
+  terminal_name: string
   person_id: string | null
-  at: string
+  /** Null for a denied check. */
+  person_name: string | null
+  result: AccessResult
+  /** Similarity to the nearest person. Null when no face was found or no one is enrolled. */
+  score: number | null
+  created_at: string
+}
+
+/** The door's answer, from POST /terminals/:id/identify. */
+export interface IdentifyResponse {
+  result: AccessResult
+  /** Set only when granted. */
+  person_name: string | null
 }

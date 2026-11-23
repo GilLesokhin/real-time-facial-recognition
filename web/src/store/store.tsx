@@ -1,46 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from './auth'
-import { seedEvents } from '../data/seed'
 import { api } from '../lib/api'
-import { newId } from '../lib/format'
 import type { AccessEvent, AccessResult, Building, Person, Terminal, TerminalListItem, User, UserRole } from '../types'
-
-/**
- * Mock data: access events live in this store and in localStorage, until GIL-79 (Identify + access log).
- * Sign-in (see ./auth), buildings, users, terminals and people are real.
- */
-
-interface State {
-  events: AccessEvent[]
-}
-
-type Action = { type: 'logEvent'; event: AccessEvent } | { type: 'reset' }
-
-const STORAGE_KEY = 'building-entry-demo-v10'
-
-const initialState = (): State => ({
-  events: seedEvents,
-})
-
-const loadState = (): State => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw) as State
-  } catch {
-    // Storage unavailable or corrupt: start from seed data.
-  }
-  return initialState()
-}
-
-function reduce(state: State, action: Action): State {
-  switch (action.type) {
-    case 'logEvent':
-      return { ...state, events: [action.event, ...state.events].slice(0, 500) }
-    case 'reset':
-      return initialState()
-  }
-}
 
 // Real API calls for the Admins page, Platform Admin only. Each throws ApiError, e.g. 403 for your own account.
 // Outside the store's state, so the page reloads the list itself after a change.
@@ -115,9 +77,18 @@ const updatePerson = (id: string, fields: PersonFields, photo: Blob | null) =>
 /** DELETE /people/:id. The door stops letting them in. Their past checks stay in the access log. */
 const removePerson = (id: string) => api(`/people/${id}`, { method: 'DELETE' })
 
+// Real API call for the access log, any admin who can manage the building.
+
+/** GET /buildings/:id/access-log. The newest 100 checks, newest first. Both filters are optional. */
+const listAccessLog = (buildingId: string, filters: { terminal?: string; result?: AccessResult } = {}) => {
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value)
+  const query = params.toString()
+  return api<AccessEvent[]>(`/buildings/${buildingId}/access-log${query ? `?${query}` : ''}`)
+}
+
 function useStoreValue() {
   const { user: currentUser } = useAuth()
-  const [state, dispatch] = useReducer(reduce, undefined, loadState)
   // From GET /buildings: only the buildings this admin can manage.
   // Tagged with the user, so a list loaded for someone else never shows after a new sign-in.
   const [loaded, setLoaded] = useState<{ userId: string; buildings: Building[] } | null>(null)
@@ -144,17 +115,8 @@ function useStoreValue() {
     }
   }, [currentUser])
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-    } catch {
-      // Storage blocked or full: keep working in memory.
-    }
-  }, [state])
-
   return useMemo(() => {
     return {
-      state,
       currentUser,
       isPlatformAdmin: currentUser?.role === 'platform_admin',
       buildingsLoaded: buildings !== null,
@@ -195,23 +157,9 @@ function useStoreValue() {
       updatePerson,
       removePerson,
 
-      // Written by the backend inside POST /terminals/:id/identify
-      logEvent: (terminal: Terminal, result: AccessResult, personId: string | null) =>
-        dispatch({
-          type: 'logEvent',
-          event: {
-            id: newId('ev'),
-            building_id: terminal.building_id,
-            terminal_id: terminal.id,
-            result,
-            person_id: personId,
-            at: new Date().toISOString(),
-          },
-        }),
-
-      resetDemo: () => dispatch({ type: 'reset' }),
+      listAccessLog,
     }
-  }, [state, currentUser, buildings, reloadBuildings])
+  }, [currentUser, buildings, reloadBuildings])
 }
 
 type Store = ReturnType<typeof useStoreValue>

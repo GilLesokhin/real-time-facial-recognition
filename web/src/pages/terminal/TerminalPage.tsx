@@ -5,28 +5,28 @@ import { useFaceDetection, type FaceShot } from '../../hooks/useFaceDetection'
 import { api, ApiError } from '../../lib/api'
 import { toScreenBox, type ScreenBox } from '../../lib/face/detector'
 import { formatTime } from '../../lib/format'
-import { useStore } from '../../store/store'
-import type { Person, TerminalKey } from '../../types'
+import type { IdentifyResponse, TerminalKey } from '../../types'
 
 type Phase = 'idle' | 'checking' | 'granted' | 'denied'
 
-/** Stand-in for the server's response time. */
-const MOCK_SERVER_MS = 400
 /** After "granted" the door opens and closes: no requests for this long. */
 const GRANTED_HOLD_MS = 10_000
 /** How long "denied" stays on screen, unless the next request's result replaces it sooner. */
 const DENIED_SHOW_MS = 3000
 const MAX_REQUESTS_SHOWN = 4
-const UNKNOWN = '__unknown'
 
-/** One identify request, as the terminal would send it. Shown in the request panel. */
+/** One identify request the terminal sent. Shown in the request panel. */
 interface SentRequest {
   id: number
   at: Date
-  shot: FaceShot | null
-  thumbUrl: string | null
-  status: 'pending' | 'granted' | 'denied'
+  shot: FaceShot
+  thumbUrl: string
+  status: 'pending' | 'granted' | 'denied' | 'failed'
   personName: string | null
+  /** Time from sending to the answer. Null while waiting. */
+  ms: number | null
+  /** Why the request failed, for the panel. */
+  error: string | null
 }
 
 function Silhouette() {
@@ -41,6 +41,13 @@ function Silhouette() {
 
 const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)} KB`
 
+const requestStatusText = (r: SentRequest) => {
+  if (r.status === 'pending') return 'waiting…'
+  if (r.status === 'granted') return `granted: ${r.personName}`
+  if (r.status === 'failed') return `failed: ${r.error}`
+  return 'denied'
+}
+
 /** The terminal's sign-in. Its `key` lives only in this tab's memory: never in localStorage or the URL. */
 type SignIn =
   | { status: 'loading' }
@@ -51,7 +58,7 @@ type SignIn =
 
 /**
  * GET /terminals/:id/key with the admin cookie, once. It returns the key and the names to show.
- * Identify (GIL-79) will send only the key. A reload starts again, so it needs an admin signed in in this browser.
+ * Identify sends only the key. A reload starts again, so it needs an admin signed in in this browser.
  */
 function useTerminalSignIn(terminalId: string | undefined): SignIn {
   const [signIn, setSignIn] = useState<SignIn>({ status: 'loading' })
@@ -79,6 +86,7 @@ const SIGN_IN_FAILED = {
   needsAdmin: 'Open this terminal from the admin panel.',
   notFound: 'This terminal no longer exists.',
   offline: "Can't reach the server. Reload the page to try again.",
+  revoked: 'This terminal is no longer signed in. Open it again from the admin panel.',
 }
 
 function SignInFailed({ status }: { status: keyof typeof SIGN_IN_FAILED }) {
@@ -94,40 +102,24 @@ function SignInFailed({ status }: { status: keyof typeof SIGN_IN_FAILED }) {
 
 export function TerminalPage() {
   const { terminalId } = useParams()
-  const { logEvent, listPeople } = useStore()
   const { videoRef, status } = useCamera()
   const signIn = useTerminalSignIn(terminalId)
+  // The key stopped working: the terminal was removed or its building closed.
+  const [revoked, setRevoked] = useState(false)
 
-  const terminal = signIn.status === 'ready' ? signIn.terminal : null
-  // Demo only, until GIL-79 (Identify + access log): the building's people, for the "recognize as" list.
-  // Read with the admin cookie that opened this tab. The real door never lists people.
-  const [people, setPeople] = useState<Person[]>([])
-  const buildingId = terminal?.building_id
-  useEffect(() => {
-    if (!buildingId) return
-    let cancelled = false
-    listPeople(buildingId)
-      .then((list) => !cancelled && setPeople(list))
-      .catch(() => !cancelled && setPeople([]))
-    return () => {
-      cancelled = true
-    }
-  }, [listPeople, buildingId])
-
+  const terminal = signIn.status === 'ready' && !revoked ? signIn.terminal : null
   const [phase, setPhase] = useState<Phase>('idle')
-  const [match, setMatch] = useState<Person | null>(null)
-  const [simulateAs, setSimulateAs] = useState(UNKNOWN)
+  const [personName, setPersonName] = useState<string | null>(null)
   const [requests, setRequests] = useState<SentRequest[]>([])
   const [now, setNow] = useState(() => new Date())
-  const timers = useRef<number[]>([])
   const nextRequestId = useRef(1)
+  const resultTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     const clock = window.setInterval(() => setNow(new Date()), 10_000)
-    const pending = timers.current
     return () => {
       window.clearInterval(clock)
-      pending.forEach((t) => window.clearTimeout(t))
+      window.clearTimeout(resultTimer.current)
     }
   }, [])
 
@@ -141,46 +133,55 @@ export function TerminalPage() {
   useEffect(() => () => thumbs.current.forEach((u) => URL.revokeObjectURL(u)), [])
 
   /**
-   * POST /terminals/{id}/identify. Mocked: the demo panel decides who the server "recognizes".
+   * POST /terminals/{id}/identify with the face crop and the terminal's key.
    * One request at a time. After "granted", nothing is sent for GRANTED_HOLD_MS. After "denied",
    * sending goes on at once: the person may still be getting into position.
    */
   const canSend = phase === 'idle' || phase === 'denied'
-  const resultTimer = useRef<number | undefined>(undefined)
-  const identify = (shot: FaceShot | null) => {
+  const updateRequest = (id: number, change: Partial<SentRequest>) =>
+    setRequests((rs) => rs.map((r) => (r.id === id ? { ...r, ...change } : r)))
+
+  const identify = (shot: FaceShot) => {
     if (!terminal || !canSend) return
     window.clearTimeout(resultTimer.current)
-    const person = people.find((p) => p.id === simulateAs) ?? null
     const id = nextRequestId.current++
+    const sentAt = performance.now()
     const request: SentRequest = {
       id,
       at: new Date(),
       shot,
-      thumbUrl: shot ? URL.createObjectURL(shot.jpeg) : null,
+      thumbUrl: URL.createObjectURL(shot.jpeg),
       status: 'pending',
       personName: null,
+      ms: null,
+      error: null,
     }
     setRequests((rs) => [request, ...rs].slice(0, MAX_REQUESTS_SHOWN))
     setPhase('checking')
-    setMatch(null)
+    setPersonName(null)
 
-    timers.current.push(
-      window.setTimeout(() => {
-        const result = person ? 'granted' : 'denied'
-        setRequests((rs) => rs.map((r) => (r.id === id ? { ...r, status: result, personName: person?.name ?? null } : r)))
-        setPhase(result)
-        setMatch(person)
-        logEvent(terminal, result, person?.id ?? null)
+    const form = new FormData()
+    form.set('photo', shot.jpeg, 'face.jpg')
+    api<IdentifyResponse>(`/terminals/${terminal.id}/identify`, { method: 'POST', body: form, bearer: terminal.key })
+      .then((answer) => {
+        updateRequest(id, { status: answer.result, personName: answer.person_name, ms: performance.now() - sentAt })
+        setPhase(answer.result)
+        setPersonName(answer.person_name)
         resultTimer.current = window.setTimeout(
           () => {
             setPhase('idle')
-            setMatch(null)
+            setPersonName(null)
           },
-          result === 'granted' ? GRANTED_HOLD_MS : DENIED_SHOW_MS,
+          answer.result === 'granted' ? GRANTED_HOLD_MS : DENIED_SHOW_MS,
         )
-        timers.current.push(resultTimer.current)
-      }, MOCK_SERVER_MS),
-    )
+      })
+      .catch((err) => {
+        const error = err instanceof ApiError ? err.message : 'Request failed.'
+        updateRequest(id, { status: 'failed', ms: performance.now() - sentAt, error })
+        if (err instanceof ApiError && err.status === 401) setRevoked(true)
+        // Any other failure: try again with the next face.
+        setPhase('idle')
+      })
   }
 
   const { live, model } = useFaceDetection(videoRef, { sending: canSend && !!terminal, onShot: identify })
@@ -199,12 +200,13 @@ export function TerminalPage() {
 
   if (signIn.status === 'loading') return null
   if (signIn.status !== 'ready') return <SignInFailed status={signIn.status} />
+  if (revoked) return <SignInFailed status="revoked" />
   const shown = signIn.terminal
 
   const message = {
     idle: live?.best ? 'Hold still…' : 'Look at the camera',
     checking: 'Checking…',
-    granted: `Welcome${match ? `, ${match.name.split(' ')[0]}` : ''}`,
+    granted: `Welcome${personName ? `, ${personName.split(' ')[0]}` : ''}`,
     denied: 'Not recognized. Please contact the building admin.',
   }[phase]
 
@@ -238,7 +240,7 @@ export function TerminalPage() {
               {(phase === 'granted' || phase === 'denied') && (
                 <span className={`face-tag ${phase}`}>{phase === 'granted' ? 'Access granted' : 'Access denied'}</span>
               )}
-              {phase === 'granted' && match && <span className="face-name">{match.name}</span>}
+              {phase === 'granted' && personName && <span className="face-name">{personName}</span>}
             </div>
           )}
         </div>
@@ -256,46 +258,25 @@ export function TerminalPage() {
         {requests.length === 0 && <p className="small faint">No requests yet.</p>}
         {requests.map((r) => (
           <div key={r.id} className="request">
-            {r.thumbUrl ? <img src={r.thumbUrl} alt="" className="request-thumb" /> : <div className="request-thumb" />}
+            <img src={r.thumbUrl} alt="" className="request-thumb mirrored" />
             <div className="request-body">
               <code className="small">POST /terminals/{shown.id}/identify</code>
-              {r.shot ? (
-                <>
-                  <span className="small muted">
-                    image/jpeg {r.shot.cropSize}×{r.shot.cropSize} · {kb(r.shot.jpeg.size)}
-                  </span>
-                  <span className="small faint">
-                    score {r.shot.score.toFixed(2)} · face in {r.shot.framesWithFace}/{r.shot.frames} frames · detect{' '}
-                    {r.shot.detectMs.toFixed(0)} ms
-                  </span>
-                </>
-              ) : (
-                <span className="small faint">Simulated, no camera image</span>
-              )}
+              <span className="small muted">
+                image/jpeg {r.shot.cropSize}×{r.shot.cropSize} · {kb(r.shot.jpeg.size)}
+              </span>
+              <span className="small faint">
+                score {r.shot.score.toFixed(2)} · face in {r.shot.framesWithFace}/{r.shot.frames} frames · detect{' '}
+                {r.shot.detectMs.toFixed(0)} ms
+              </span>
               <span className={`small request-status ${r.status}`}>
-                {formatTime(r.at)} ·{' '}
-                {r.status === 'pending' ? 'waiting…' : r.status === 'granted' ? `granted: ${r.personName}` : 'denied'}
+                {formatTime(r.at)} · {requestStatusText(r)}
+                {r.ms !== null && ` · ${r.ms.toFixed(0)} ms`}
               </span>
             </div>
           </div>
         ))}
       </aside>
 
-      <aside className="demo-panel card">
-        <span className="label">Demo controls</span>
-        <p className="small faint">No backend yet: choose who the server "recognizes" for the next request.</p>
-        <select className="select" value={simulateAs} onChange={(e) => setSimulateAs(e.target.value)}>
-          {people.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name} · {p.apartment}
-            </option>
-          ))}
-          <option value={UNKNOWN}>Unknown face</option>
-        </select>
-        <button type="button" className="btn" onClick={() => identify(null)} disabled={!canSend}>
-          Simulate without camera
-        </button>
-      </aside>
     </div>
   )
 }
