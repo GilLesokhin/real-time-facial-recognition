@@ -93,24 +93,23 @@ def test_lists_active_terminals_by_name(client: TestClient, session: Session, ma
     response = client.get(f"/buildings/{building.id}/terminals")
     assert response.status_code == 200
     assert names(response) == ["garage", "Main lobby"]
-    assert set(response.json()[0]) == {"id", "building_id", "name"}
+    assert set(response.json()[0]) == {"id", "building_id", "name", "latest_event"}
 
 
-# GIL-79 (Identify + access log): uncomment with latest_event.
-# def test_list_shows_each_terminals_newest_event(
-#     client: TestClient, session: Session, make_user, make_building, make_terminal, make_person
-# ):
-#     building = make_building()
-#     lobby = make_terminal(building, "Lobby")
-#     make_terminal(building, "Garage")
-#     add_event(session, lobby, AccessResult.DENIED, datetime(2026, 11, 1, 9, 0, tzinfo=UTC))
-#     add_event(session, lobby, AccessResult.GRANTED, datetime(2026, 11, 1, 10, 0, tzinfo=UTC), make_person(building))
-#     as_platform_admin(client, make_user)
-#
-#     by_name = {terminal["name"]: terminal for terminal in client.get(f"/buildings/{building.id}/terminals").json()}
-#     assert by_name["Lobby"]["latest_event"]["result"] == "granted"
-#     assert by_name["Lobby"]["latest_event"]["created_at"].startswith("2026-11-01T10:00:00")
-#     assert by_name["Garage"]["latest_event"] is None
+def test_list_shows_each_terminals_newest_event(
+    client: TestClient, session: Session, make_user, make_building, make_terminal, make_person
+):
+    building = make_building()
+    lobby = make_terminal(building, "Lobby")
+    make_terminal(building, "Garage")
+    add_event(session, lobby, AccessResult.DENIED, datetime(2026, 11, 1, 9, 0, tzinfo=UTC))
+    add_event(session, lobby, AccessResult.GRANTED, datetime(2026, 11, 1, 10, 0, tzinfo=UTC), make_person(building))
+    as_platform_admin(client, make_user)
+
+    by_name = {terminal["name"]: terminal for terminal in client.get(f"/buildings/{building.id}/terminals").json()}
+    assert by_name["Lobby"]["latest_event"]["result"] == "granted"
+    assert by_name["Lobby"]["latest_event"]["created_at"].startswith("2026-11-01T10:00:00")
+    assert by_name["Garage"]["latest_event"] is None
 
 
 def test_list_of_unknown_or_deactivated_building_is_404(client: TestClient, session: Session, make_user, make_building):
