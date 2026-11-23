@@ -104,8 +104,11 @@ export function PhotoPicker({ value, onChange, hint = 'A clear, front-facing pho
     if (previewRef.current) URL.revokeObjectURL(previewRef.current)
     previewRef.current = null
   }, [])
-  // `shown` is what the frame shows: the whole webcam frame, or the crop for an upload.
-  const pick = (photo: Blob | null, webcam = false, shown: Blob | null = photo) => {
+  /**
+   * `photo` is the crop sent to the server, or null to clear it. `shown` is what the frame shows:
+   * the whole webcam frame, or the crop itself. `webcam` shows it mirrored.
+   */
+  const pick = ({ photo, shown = photo, webcam = false }: { photo: Blob | null; shown?: Blob | null; webcam?: boolean }) => {
     if (previewRef.current) URL.revokeObjectURL(previewRef.current)
     previewRef.current = shown ? URL.createObjectURL(shown) : null
     setPreview(previewRef.current)
@@ -122,7 +125,7 @@ export function PhotoPicker({ value, onChange, hint = 'A clear, front-facing pho
       <WebcamCapture
         detector={detector}
         onCapture={(photo, original) => {
-          pick(photo, true, original)
+          pick({ photo, shown: original, webcam: true })
           setError(null)
           setUsingCamera(false)
         }}
@@ -140,7 +143,7 @@ export function PhotoPicker({ value, onChange, hint = 'A clear, front-facing pho
       image = await createImageBitmap(file).catch(() => {
         throw new Error("Couldn't read that image.")
       })
-      pick(await enrollmentCrop(detector, image))
+      pick({ photo: await enrollmentCrop(detector, image) })
       setError(null)
     } catch (err) {
       setError((err as Error).message)
@@ -161,7 +164,7 @@ export function PhotoPicker({ value, onChange, hint = 'A clear, front-facing pho
           <User size={64} strokeWidth={1} />
         )}
         {value && (
-          <button type="button" className="icon-btn danger" aria-label="Remove photo" onClick={() => pick(null)}>
+          <button type="button" className="icon-btn danger" aria-label="Remove photo" onClick={() => pick({ photo: null })}>
             <Trash2 size={16} />
           </button>
         )}

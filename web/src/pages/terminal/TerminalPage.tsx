@@ -7,7 +7,8 @@ import { toScreenBox, type ScreenBox } from '../../lib/face/detector'
 import { formatTime } from '../../lib/format'
 import type { IdentifyResponse, TerminalKey } from '../../types'
 
-type Phase = 'idle' | 'checking' | 'granted' | 'denied'
+/** What the door shows. Only "granted" has a name. */
+type Door = { phase: 'idle' } | { phase: 'checking' } | { phase: 'granted'; personName: string } | { phase: 'denied' }
 
 /** After "granted" the door opens and closes: no requests for this long. */
 const GRANTED_HOLD_MS = 10_000
@@ -39,14 +40,6 @@ function Silhouette() {
   )
 }
 
-const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)} KB`
-
-const requestStatusText = (r: SentRequest) => {
-  if (r.status === 'pending') return 'waiting…'
-  if (r.status === 'granted') return `granted: ${r.personName}`
-  if (r.status === 'failed') return `failed: ${r.error}`
-  return 'denied'
-}
 
 /** The terminal's sign-in. Its `key` lives only in this tab's memory: never in localStorage or the URL. */
 type SignIn =
@@ -54,13 +47,16 @@ type SignIn =
   | { status: 'needsAdmin' }
   | { status: 'notFound' }
   | { status: 'offline' }
+  /** The key stopped working: the terminal was removed or its building closed. */
+  | { status: 'revoked' }
   | { status: 'ready'; terminal: TerminalKey }
 
 /**
  * GET /terminals/:id/key with the admin cookie, once. It returns the key and the names to show.
  * Identify sends only the key. A reload starts again, so it needs an admin signed in in this browser.
+ * Call `revoke` when the server refuses the key.
  */
-function useTerminalSignIn(terminalId: string | undefined): SignIn {
+function useTerminalSignIn(terminalId: string | undefined) {
   const [signIn, setSignIn] = useState<SignIn>({ status: 'loading' })
 
   useEffect(() => {
@@ -79,10 +75,10 @@ function useTerminalSignIn(terminalId: string | undefined): SignIn {
     }
   }, [terminalId])
 
-  return signIn
+  return { signIn, revoke: () => setSignIn({ status: 'revoked' }) }
 }
 
-const SIGN_IN_FAILED = {
+const SIGN_IN_FAILED: Record<Exclude<SignIn['status'], 'loading' | 'ready'>, string> = {
   needsAdmin: 'Open this terminal from the admin panel.',
   notFound: 'This terminal no longer exists.',
   offline: "Can't reach the server. Reload the page to try again.",
@@ -100,16 +96,61 @@ function SignInFailed({ status }: { status: keyof typeof SIGN_IN_FAILED }) {
   )
 }
 
+const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)} KB`
+
+const requestStatusText = (r: SentRequest) => {
+  if (r.status === 'pending') return 'waiting…'
+  if (r.status === 'granted') return `granted: ${r.personName}`
+  if (r.status === 'failed') return `failed: ${r.error}`
+  return 'denied'
+}
+
+/** The last few identify requests, for checking what the door sends and how fast the answer comes. */
+function RequestPanel({ terminalId, requests }: { terminalId: string; requests: SentRequest[] }) {
+  // Free the thumbnails' memory when they leave the panel or the page closes.
+  const thumbs = useRef(new Set<string>())
+  useEffect(() => {
+    const shown = new Set(requests.map((r) => r.thumbUrl))
+    thumbs.current.forEach((u) => !shown.has(u) && URL.revokeObjectURL(u))
+    thumbs.current = shown
+  }, [requests])
+  useEffect(() => () => thumbs.current.forEach((u) => URL.revokeObjectURL(u)), [])
+
+  return (
+    <aside className="request-panel card">
+      <span className="label">Requests to server</span>
+      <p className="small faint">The best face of each second is cropped and sent. After "granted", nothing is sent for 10 s.</p>
+      {requests.length === 0 && <p className="small faint">No requests yet.</p>}
+      {requests.map((r) => (
+        <div key={r.id} className="request">
+          <img src={r.thumbUrl} alt="" className="request-thumb mirrored" />
+          <div className="request-body">
+            <code className="small">POST /terminals/{terminalId}/identify</code>
+            <span className="small muted">
+              image/jpeg {r.shot.cropSize}×{r.shot.cropSize} · {kb(r.shot.jpeg.size)}
+            </span>
+            <span className="small faint">
+              score {r.shot.score.toFixed(2)} · face in {r.shot.framesWithFace}/{r.shot.frames} frames · detect{' '}
+              {r.shot.detectMs.toFixed(0)} ms
+            </span>
+            <span className={`small request-status ${r.status}`}>
+              {formatTime(r.at)} · {requestStatusText(r)}
+              {r.ms !== null && ` · ${r.ms.toFixed(0)} ms`}
+            </span>
+          </div>
+        </div>
+      ))}
+    </aside>
+  )
+}
+
 export function TerminalPage() {
   const { terminalId } = useParams()
   const { videoRef, status } = useCamera()
-  const signIn = useTerminalSignIn(terminalId)
-  // The key stopped working: the terminal was removed or its building closed.
-  const [revoked, setRevoked] = useState(false)
+  const { signIn, revoke } = useTerminalSignIn(terminalId)
 
-  const terminal = signIn.status === 'ready' && !revoked ? signIn.terminal : null
-  const [phase, setPhase] = useState<Phase>('idle')
-  const [personName, setPersonName] = useState<string | null>(null)
+  const terminal = signIn.status === 'ready' ? signIn.terminal : null
+  const [door, setDoor] = useState<Door>({ phase: 'idle' })
   const [requests, setRequests] = useState<SentRequest[]>([])
   const [now, setNow] = useState(() => new Date())
   const nextRequestId = useRef(1)
@@ -123,21 +164,12 @@ export function TerminalPage() {
     }
   }, [])
 
-  // Free the thumbnails' memory when they leave the panel or the page closes.
-  const thumbs = useRef(new Set<string>())
-  useEffect(() => {
-    const shown = new Set(requests.map((r) => r.thumbUrl).filter((u): u is string => !!u))
-    thumbs.current.forEach((u) => !shown.has(u) && URL.revokeObjectURL(u))
-    thumbs.current = shown
-  }, [requests])
-  useEffect(() => () => thumbs.current.forEach((u) => URL.revokeObjectURL(u)), [])
-
   /**
    * POST /terminals/{id}/identify with the face crop and the terminal's key.
    * One request at a time. After "granted", nothing is sent for GRANTED_HOLD_MS. After "denied",
    * sending goes on at once: the person may still be getting into position.
    */
-  const canSend = phase === 'idle' || phase === 'denied'
+  const canSend = door.phase === 'idle' || door.phase === 'denied'
   const updateRequest = (id: number, change: Partial<SentRequest>) =>
     setRequests((rs) => rs.map((r) => (r.id === id ? { ...r, ...change } : r)))
 
@@ -157,30 +189,26 @@ export function TerminalPage() {
       error: null,
     }
     setRequests((rs) => [request, ...rs].slice(0, MAX_REQUESTS_SHOWN))
-    setPhase('checking')
-    setPersonName(null)
+    setDoor({ phase: 'checking' })
 
     const form = new FormData()
     form.set('photo', shot.jpeg, 'face.jpg')
     api<IdentifyResponse>(`/terminals/${terminal.id}/identify`, { method: 'POST', body: form, bearer: terminal.key })
       .then((answer) => {
         updateRequest(id, { status: answer.result, personName: answer.person_name, ms: performance.now() - sentAt })
-        setPhase(answer.result)
-        setPersonName(answer.person_name)
+        if (answer.result === 'granted') setDoor({ phase: 'granted', personName: answer.person_name ?? '' })
+        else setDoor({ phase: 'denied' })
         resultTimer.current = window.setTimeout(
-          () => {
-            setPhase('idle')
-            setPersonName(null)
-          },
+          () => setDoor({ phase: 'idle' }),
           answer.result === 'granted' ? GRANTED_HOLD_MS : DENIED_SHOW_MS,
         )
       })
       .catch((err) => {
         const error = err instanceof ApiError ? err.message : 'Request failed.'
         updateRequest(id, { status: 'failed', ms: performance.now() - sentAt, error })
-        if (err instanceof ApiError && err.status === 401) setRevoked(true)
+        if (err instanceof ApiError && err.status === 401) revoke()
         // Any other failure: try again with the next face.
-        setPhase('idle')
+        setDoor({ phase: 'idle' })
       })
   }
 
@@ -192,16 +220,17 @@ export function TerminalPage() {
   useLayoutEffect(() => {
     const el = cameraRef.current
     if (!live?.best?.boundingBox || !el) {
-      if (phase === 'idle') setBox(null)
+      if (door.phase === 'idle') setBox(null)
       return
     }
     setBox(toScreenBox(live.best.boundingBox, live.video, { width: el.clientWidth, height: el.clientHeight }, true))
-  }, [live, phase])
+  }, [live, door.phase])
 
   if (signIn.status === 'loading') return null
   if (signIn.status !== 'ready') return <SignInFailed status={signIn.status} />
-  if (revoked) return <SignInFailed status="revoked" />
   const shown = signIn.terminal
+  const { phase } = door
+  const personName = door.phase === 'granted' ? door.personName : null
 
   const message = {
     idle: live?.best ? 'Hold still…' : 'Look at the camera',
@@ -252,31 +281,7 @@ export function TerminalPage() {
         </p>
       </footer>
 
-      <aside className="request-panel card">
-        <span className="label">Requests to server</span>
-        <p className="small faint">The best face of each second is cropped and sent. After "granted", nothing is sent for 10 s.</p>
-        {requests.length === 0 && <p className="small faint">No requests yet.</p>}
-        {requests.map((r) => (
-          <div key={r.id} className="request">
-            <img src={r.thumbUrl} alt="" className="request-thumb mirrored" />
-            <div className="request-body">
-              <code className="small">POST /terminals/{shown.id}/identify</code>
-              <span className="small muted">
-                image/jpeg {r.shot.cropSize}×{r.shot.cropSize} · {kb(r.shot.jpeg.size)}
-              </span>
-              <span className="small faint">
-                score {r.shot.score.toFixed(2)} · face in {r.shot.framesWithFace}/{r.shot.frames} frames · detect{' '}
-                {r.shot.detectMs.toFixed(0)} ms
-              </span>
-              <span className={`small request-status ${r.status}`}>
-                {formatTime(r.at)} · {requestStatusText(r)}
-                {r.ms !== null && ` · ${r.ms.toFixed(0)} ms`}
-              </span>
-            </div>
-          </div>
-        ))}
-      </aside>
-
+      <RequestPanel terminalId={shown.id} requests={requests} />
     </div>
   )
 }

@@ -8,6 +8,14 @@ export class ApiError extends Error {
   }
 }
 
+/** `path` with the filled-in params as a query string. Empty and missing values are left out. */
+export function withQuery(path: string, params: Record<string, string | undefined>): string {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) if (value) query.set(key, value)
+  const text = query.toString()
+  return text ? `${path}?${text}` : path
+}
+
 /**
  * Calls the API through the Vite proxy (`/api` → http://localhost:8000).
  * A `FormData` body is sent as multipart, with the browser's own Content-Type. Any other body is sent as JSON.

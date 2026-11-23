@@ -1,19 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from './auth'
-import { api } from '../lib/api'
+import { api, withQuery } from '../lib/api'
 import type { AccessEvent, AccessResult, Building, Person, Terminal, TerminalListItem, User, UserRole } from '../types'
 
 // Real API calls for the Admins page, Platform Admin only. Each throws ApiError, e.g. 403 for your own account.
 // Outside the store's state, so the page reloads the list itself after a change.
 
 /** GET /users. Filters are optional. Unassigned users come first, then by name. */
-const listUsers = (filters: { role?: UserRole; building?: string; search?: string } = {}) => {
-  const params = new URLSearchParams()
-  for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value)
-  const query = params.toString()
-  return api<User[]>(query ? `/users?${query}` : '/users')
-}
+const listUsers = (filters: { role?: UserRole; building?: string; search?: string } = {}) =>
+  api<User[]>(withQuery('/users', filters))
 
 /** PATCH /users/:id. `buildingId` is used only for a Building Admin. Everyone else gets null. */
 const setUserAccess = (user: User, role: UserRole, buildingId: string | null) =>
@@ -61,10 +57,8 @@ const personForm = (fields: PersonFields, photo: Blob | null) => {
 }
 
 /** GET /buildings/:id/people. By name. `search` looks in name and apartment. */
-const listPeople = (buildingId: string, search = '') => {
-  const query = search.trim() ? `?${new URLSearchParams({ search: search.trim() })}` : ''
-  return api<Person[]>(`/buildings/${buildingId}/people${query}`)
-}
+const listPeople = (buildingId: string, search = '') =>
+  api<Person[]>(withQuery(`/buildings/${buildingId}/people`, { search: search.trim() }))
 
 /** POST /buildings/:id/people. The server keeps the face embedding and discards the photo. */
 const addPerson = (buildingId: string, fields: PersonFields, photo: Blob) =>
@@ -80,12 +74,8 @@ const removePerson = (id: string) => api(`/people/${id}`, { method: 'DELETE' })
 // Real API call for the access log, any admin who can manage the building.
 
 /** GET /buildings/:id/access-log. The newest 100 checks, newest first. Both filters are optional. */
-const listAccessLog = (buildingId: string, filters: { terminal?: string; result?: AccessResult } = {}) => {
-  const params = new URLSearchParams()
-  for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value)
-  const query = params.toString()
-  return api<AccessEvent[]>(`/buildings/${buildingId}/access-log${query ? `?${query}` : ''}`)
-}
+const listAccessLog = (buildingId: string, filters: { terminal?: string; result?: AccessResult } = {}) =>
+  api<AccessEvent[]>(withQuery(`/buildings/${buildingId}/access-log`, filters))
 
 function useStoreValue() {
   const { user: currentUser } = useAuth()
