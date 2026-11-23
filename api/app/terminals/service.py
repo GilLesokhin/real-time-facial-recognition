@@ -5,28 +5,25 @@ from app.buildings.models import Building
 from app.core.security import terminal_key
 from app.terminals import db as terminals_db
 from app.terminals.models import Terminal
-from app.terminals.schemas import TerminalKeyResponse
+from app.terminals.schemas import (
+    TerminalAccessEvent,
+    TerminalKeyResponse,
+    TerminalListItem,
+)
 
 
-def list_terminals(session: Session, building: Building) -> list[Terminal]:
-    """The building's active terminals by name."""
-    return terminals_db.list_active_terminals(session, building.id)
-
-
-# GIL-79 (Identify + access log): the list with each terminal's newest event. To restore, uncomment
-# and import `LatestEvent` and `TerminalListItem` from app.terminals.schemas.
-# def list_terminals(session: Session, building: Building) -> list[TerminalListItem]:
-#     """The building's active terminals by name, each with its newest event."""
-#     terminals = terminals_db.list_active_terminals(session, building.id)
-#     latest_events = terminals_db.latest_events(session, building.id)
-#     items = []
-#     for terminal in terminals:
-#         event = latest_events.get(terminal.id)
-#         latest_event = LatestEvent.model_validate(event) if event else None
-#         items.append(
-#             TerminalListItem(id=terminal.id, building_id=terminal.building_id, name=terminal.name, latest_event=latest_event)
-#         )
-#     return items
+def list_terminals(session: Session, building: Building) -> list[TerminalListItem]:
+    """The building's active terminals by name, each with its newest event."""
+    terminals = terminals_db.list_active_terminals(session, building.id)
+    latest_events = terminals_db.latest_events(session, building.id)
+    items = []
+    for terminal in terminals:
+        event = latest_events.get(terminal.id)
+        latest_event = TerminalAccessEvent.model_validate(event) if event else None
+        items.append(
+            TerminalListItem(id=terminal.id, building_id=terminal.building_id, name=terminal.name, latest_event=latest_event)
+        )
+    return items
 
 
 def add_terminal(session: Session, building: Building, name: str) -> Terminal:

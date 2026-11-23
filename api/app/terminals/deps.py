@@ -1,11 +1,14 @@
+import hmac
 import uuid
 from typing import Annotated
 
 from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.auth.deps import SignedAdmin
 from app.buildings.deps import can_manage
 from app.core.db import SessionDep
+from app.core.security import terminal_key
 from app.terminals import db as terminals_db
 from app.terminals.models import Terminal
 
@@ -25,32 +28,24 @@ def manageable_terminal(terminal_id: uuid.UUID, admin: SignedAdmin, session: Ses
 ManageableTerminal = Annotated[Terminal, Depends(manageable_terminal)]
 
 
-# GIL-79 (Identify + access log): the guard for terminal-only endpoints. Identify is the first to use it.
-# To restore: uncomment this and add back the imports
-#   import hmac
-#   from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-#   from app.core.security import terminal_key
+# The `Authorization: Bearer <key>` header.
+# auto_error=False: a missing header gives None, so signed_terminal answers its own 401.
+BearerCredentials = Annotated[HTTPAuthorizationCredentials | None, Depends(HTTPBearer(auto_error=False))]
 
-# # The `Authorization: Bearer <key>` header.
-# # auto_error=False: a missing header gives None, so current_terminal answers its own 401.
-# BearerCredentials = Annotated[HTTPAuthorizationCredentials | None, Depends(HTTPBearer(auto_error=False))]
-#
-#
-# def current_terminal(terminal_id: uuid.UUID, credentials: BearerCredentials, session: SessionDep) -> Terminal:
-#     """The `{terminal_id}` in the URL, if the request carries its key. Never reads the admin cookie.
-#
-#     Every failure is the same 401, so the answer doesn't reveal which check failed.
-#     """
-#     not_signed_in = HTTPException(401, "Terminal not signed in.", headers={"WWW-Authenticate": "Bearer"})
-#     if credentials is None:
-#         raise not_signed_in
-#     if not hmac.compare_digest(credentials.credentials, terminal_key(terminal_id)):
-#         raise not_signed_in
-#     terminal = terminals_db.get_active_terminal(session, terminal_id)
-#     if terminal is None or not terminal.building.is_active:
-#         raise not_signed_in
-#     return terminal
-#
-#
-# # Short form for terminal-only routes: `terminal: CurrentTerminal`.
-# CurrentTerminal = Annotated[Terminal, Depends(current_terminal)]
+
+def signed_terminal(terminal_id: uuid.UUID, credentials: BearerCredentials, session: SessionDep) -> Terminal:
+    """The `{terminal_id}` in the URL, if the request carries its key. Never reads the admin cookie.
+
+    Every failure is the same 401, so the answer doesn't reveal which check failed.
+    """
+    not_signed_in = HTTPException(401, "Terminal not signed in.", headers={"WWW-Authenticate": "Bearer"})
+    if credentials is None or not hmac.compare_digest(credentials.credentials, terminal_key(terminal_id)):
+        raise not_signed_in
+    terminal = terminals_db.get_active_terminal(session, terminal_id)
+    if terminal is None or not terminal.building.is_active:
+        raise not_signed_in
+    return terminal
+
+
+# Short form for terminal-only routes: `terminal: SignedTerminal`.
+SignedTerminal = Annotated[Terminal, Depends(signed_terminal)]

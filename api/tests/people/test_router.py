@@ -6,9 +6,9 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.faces.embedding import embed_face
+from app.faces.embedding import embed_for_enrollment
+from app.faces.upload import MAX_PHOTO_BYTES
 from app.people.models import Person
-from app.people.service import MAX_PHOTO_BYTES
 from app.users.models import UserRole
 from tests.conftest import login
 
@@ -156,7 +156,7 @@ def test_adds_person_with_the_photos_embedding(client: TestClient, session: Sess
     assert body["apartment"] == "4B"
     assert body["building_id"] == str(building.id)
     assert "embedding" not in body
-    assert saved_embedding(session, body["id"]) == pytest.approx(embed_face(FACE), abs=1e-6)
+    assert saved_embedding(session, body["id"]) == pytest.approx(embed_for_enrollment(FACE), abs=1e-6)
 
 
 @pytest.mark.parametrize("form", [{"name": " ", "apartment": "4B"}, {"name": "Dana", "apartment": ""}, {"name": "Dana"}])
@@ -177,7 +177,7 @@ def test_add_needs_a_photo(client: TestClient, make_user, make_building):
     ("data", "message"),
     [
         (as_png(np.full((320, 320, 3), 128, np.uint8)), "No face found in the photo."),
-        (two_faces(), "More than one face in the photo. Use a photo of one person."),
+        (two_faces(), "This photo shows more than one face. Retake it with only one person in view."),
         (b"not an image", "The file is not an image."),
     ],
 )
@@ -224,7 +224,7 @@ def test_edit_with_a_new_photo_replaces_the_embedding(
     response = client.patch(f"/people/{person.id}", data={"apartment": "7A"}, files=photo(OTHER_FACE))
     assert response.status_code == 200
     assert response.json()["apartment"] == "7A"
-    assert saved_embedding(session, person.id) == pytest.approx(embed_face(OTHER_FACE), abs=1e-6)
+    assert saved_embedding(session, person.id) == pytest.approx(embed_for_enrollment(OTHER_FACE), abs=1e-6)
 
 
 def test_edit_with_a_bad_photo_changes_nothing(client: TestClient, session: Session, make_user, make_building, make_person):

@@ -80,27 +80,16 @@ const area = (d: Detection) => (d.boundingBox ? d.boundingBox.width * d.bounding
 export const isCloseEnough = (d: Detection, minFacePx: number) => !!d.boundingBox && d.boundingBox.width >= minFacePx
 
 /**
- * The face to act on: highest score, then the biggest (closest to the door).
- * TODO: check every face at the door (GIL-68).
+ * The face to act on: the biggest box (closest to the door). In a tie, the first face wins.
+ * The server uses the same rule on the crop. TODO: check every face at the door (GIL-68).
  */
 export function bestDetection(detections: Detection[]): Detection | null {
   let best: Detection | null = null
   for (const d of detections) {
     if (!d.boundingBox) continue
-    if (!best || scoreOf(d) > scoreOf(best) || (scoreOf(d) === scoreOf(best) && area(d) > area(best))) best = d
+    if (!best || area(d) > area(best)) best = d
   }
   return best
-}
-
-/**
- * ORIENTATION RULE: every face image the server sees is mirrored (selfie view): terminal crops,
- * webcam enrollment and uploaded photos. All of them go through cropFace, which mirrors. Only
- * consistency matters for matching; mirrored was picked because it looks natural. Live <video>
- * previews are flipped with CSS; crops are already mirrored, so never CSS-flip them again.
- */
-export function mirror(ctx: CanvasRenderingContext2D, width: number) {
-  ctx.translate(width, 0)
-  ctx.scale(-1, 1)
 }
 
 /** Anything a face can be found in and cropped from: the door's camera, a captured frame, an uploaded photo. */
@@ -122,7 +111,11 @@ export function grabFrame(video: HTMLVideoElement): HTMLCanvasElement {
   return canvas
 }
 
-/** Draws a loose square around the face onto a `size` canvas, mirrored (see the orientation rule). */
+/**
+ * Draws a loose square around the face onto a `size` canvas, as the camera or photo shows it.
+ * ORIENTATION RULE: no face image is ever flipped, so the server sees every face the right way round.
+ * Only the screen mirrors webcam images, with the CSS class `mirrored`, so they look like a mirror.
+ */
 export function cropFace(
   source: FaceSource,
   box: BoundingBox,
@@ -140,11 +133,7 @@ export function cropFace(
   canvas.width = size
   canvas.height = size
   const ctx = canvas.getContext('2d')
-  if (ctx) {
-    // Flip the destination, so the source rectangle above stays in camera coordinates.
-    mirror(ctx, size)
-    ctx.drawImage(source, sx, sy, side, side, 0, 0, size, size)
-  }
+  ctx?.drawImage(source, sx, sy, side, side, 0, 0, size, size)
   return canvas
 }
 
@@ -163,7 +152,7 @@ export async function enrollmentCrop(
   // The detector already drops faces under its minimum confidence.
   const faces = detector.detect(image).detections.filter((d) => d.boundingBox)
   if (faces.length === 0) throw new Error('No face found. Use a clear, front-facing photo.')
-  if (faces.length > 1) throw new Error('More than one face. Use a photo of one person.')
+  if (faces.length > 1) throw new Error('This photo shows more than one face. Retake it with only one person in view.')
   const face = faces[0]!
   if (!isCloseEnough(face, settings.minFacePx)) throw new Error('The face is too small. Move closer, or use a bigger photo.')
   const jpeg = await toJpeg(cropFace(image, face.boundingBox!, settings.cropSize, settings.cropMargin), settings.jpegQuality)

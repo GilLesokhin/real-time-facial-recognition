@@ -1,4 +1,4 @@
-import { Building2, History, LogOut, MonitorSmartphone, RotateCcw, ShieldCheck, Users } from 'lucide-react'
+import { Building2, History, LogOut, MonitorSmartphone, ShieldCheck, Users } from 'lucide-react'
 import { Navigate, NavLink, Outlet, useMatch, useNavigate } from 'react-router-dom'
 import { NotFound } from '../pages/NotFoundPage'
 import { useAuth } from '../store/auth'
@@ -7,7 +7,7 @@ import { Logo } from './Logo'
 
 export function AdminLayout() {
   const { status, user: currentUser, signOut } = useAuth()
-  const { visibleBuildings, buildingsLoaded, isPlatformAdmin, resetDemo } = useStore()
+  const { visibleBuildings, buildingsLoaded, isPlatformAdmin } = useStore()
   const navigate = useNavigate()
   // The building in the URL. On /buildings and /users, the nav links point at the first building.
   const match = useMatch('/buildings/:buildingId/*')
@@ -84,9 +84,6 @@ export function AdminLayout() {
               <LogOut size={16} />
             </button>
           </div>
-          <button type="button" className="btn btn-sm" onClick={resetDemo}>
-            <RotateCcw size={14} /> Reset demo data
-          </button>
         </div>
       </aside>
 

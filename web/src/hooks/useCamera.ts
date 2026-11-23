@@ -12,10 +12,11 @@ export function useCamera({ width = 1920, height = 1080 }: { width?: number; hei
   const [status, setStatus] = useState<CameraStatus>(() =>
     typeof navigator.mediaDevices?.getUserMedia === 'function' ? 'starting' : 'unavailable',
   )
+  const [stream, setStream] = useState<MediaStream | null>(null)
 
   useEffect(() => {
     if (!navigator.mediaDevices?.getUserMedia) return
-    let stream: MediaStream | null = null
+    let started: MediaStream | null = null
     let cancelled = false
 
     navigator.mediaDevices
@@ -25,20 +26,27 @@ export function useCamera({ width = 1920, height = 1080 }: { width?: number; hei
           s.getTracks().forEach((t) => t.stop())
           return
         }
-        stream = s
-        if (videoRef.current) {
-          videoRef.current.srcObject = s
-          void videoRef.current.play()
-        }
+        started = s
+        setStream(s)
         setStatus('live')
       })
       .catch(() => !cancelled && setStatus('unavailable'))
 
     return () => {
       cancelled = true
-      stream?.getTracks().forEach((t) => t.stop())
+      started?.getTracks().forEach((t) => t.stop())
+      setStream(null)
     }
   }, [width, height])
+
+  // After every render: the page may show its <video> only later (the terminal waits for its key),
+  // so connect the stream whenever the video and the stream are both there.
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !stream || video.srcObject === stream) return
+    video.srcObject = stream
+    void video.play()
+  })
 
   return { videoRef, status }
 }

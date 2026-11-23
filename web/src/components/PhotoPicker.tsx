@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Camera, ImageUp, Trash2, User } from 'lucide-react'
 import { useCamera } from '../hooks/useCamera'
-import { createFaceDetector, enrollmentCrop, grabFrame, type FaceDetector } from '../lib/face/detector'
+import { createFaceDetector, enrollmentCrop, grabFrame, toJpeg, type FaceDetector } from '../lib/face/detector'
 
 interface PhotoPickerProps {
   /** The face crop JPEG to send, or null when none is picked. Only this picker changes it. */
@@ -44,7 +44,7 @@ function WebcamCapture({
   onCancel,
 }: {
   detector: FaceDetector
-  onCapture: (photo: Blob) => void
+  onCapture: (photo: Blob, original: Blob) => void
   onCancel: () => void
 }) {
   const { videoRef, status } = useCamera()
@@ -56,7 +56,11 @@ function WebcamCapture({
     if (!video || !video.videoWidth) return
     setBusy(true)
     try {
-      onCapture(await enrollmentCrop(detector, grabFrame(video)))
+      const frame = grabFrame(video)
+      const photo = await enrollmentCrop(detector, frame)
+      // The whole frame, to show after capture. Only the crop is sent to the server.
+      const original = await toJpeg(frame)
+      onCapture(photo, original ?? photo)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -93,15 +97,22 @@ export function PhotoPicker({ value, onChange, hint = 'A clear, front-facing pho
   const { detector, failed } = useStillFaceDetector()
   // A URL to show the picked photo. Made where the photo is picked, and freed when it's replaced or the picker closes.
   const [preview, setPreview] = useState<string | null>(null)
+  // A webcam photo is shown mirrored, like the live camera. An uploaded photo is shown as it is.
+  const [fromWebcam, setFromWebcam] = useState(false)
   const previewRef = useRef<string | null>(null)
   useEffect(() => () => {
     if (previewRef.current) URL.revokeObjectURL(previewRef.current)
     previewRef.current = null
   }, [])
-  const pick = (photo: Blob | null) => {
+  /**
+   * `photo` is the crop sent to the server, or null to clear it. `shown` is what the frame shows:
+   * the whole webcam frame, or the crop itself. `webcam` shows it mirrored.
+   */
+  const pick = ({ photo, shown = photo, webcam = false }: { photo: Blob | null; shown?: Blob | null; webcam?: boolean }) => {
     if (previewRef.current) URL.revokeObjectURL(previewRef.current)
-    previewRef.current = photo ? URL.createObjectURL(photo) : null
+    previewRef.current = shown ? URL.createObjectURL(shown) : null
     setPreview(previewRef.current)
+    setFromWebcam(webcam)
     onChange(photo)
   }
   const [usingCamera, setUsingCamera] = useState(false)
@@ -113,8 +124,8 @@ export function PhotoPicker({ value, onChange, hint = 'A clear, front-facing pho
     return (
       <WebcamCapture
         detector={detector}
-        onCapture={(photo) => {
-          pick(photo)
+        onCapture={(photo, original) => {
+          pick({ photo, shown: original, webcam: true })
           setError(null)
           setUsingCamera(false)
         }}
@@ -132,7 +143,7 @@ export function PhotoPicker({ value, onChange, hint = 'A clear, front-facing pho
       image = await createImageBitmap(file).catch(() => {
         throw new Error("Couldn't read that image.")
       })
-      pick(await enrollmentCrop(detector, image))
+      pick({ photo: await enrollmentCrop(detector, image) })
       setError(null)
     } catch (err) {
       setError((err as Error).message)
@@ -147,9 +158,13 @@ export function PhotoPicker({ value, onChange, hint = 'A clear, front-facing pho
   return (
     <div className="photo-row">
       <div className="photo-frame">
-        {preview ? <img src={preview} alt="Face photo" /> : <User size={64} strokeWidth={1} />}
+        {preview ? (
+          <img src={preview} alt="Face photo" className={fromWebcam ? 'mirrored' : undefined} />
+        ) : (
+          <User size={64} strokeWidth={1} />
+        )}
         {value && (
-          <button type="button" className="icon-btn danger" aria-label="Remove photo" onClick={() => pick(null)}>
+          <button type="button" className="icon-btn danger" aria-label="Remove photo" onClick={() => pick({ photo: null })}>
             <Trash2 size={16} />
           </button>
         )}

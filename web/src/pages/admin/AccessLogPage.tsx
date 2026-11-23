@@ -2,36 +2,42 @@ import { useEffect, useState } from 'react'
 import { Avatar } from '../../components/Avatar'
 import { formatDateTime } from '../../lib/format'
 import { useCurrentBuilding, useStore } from '../../store/store'
-import type { AccessResult, Person, Terminal } from '../../types'
+import type { AccessEvent, AccessResult, Terminal } from '../../types'
 
 export function AccessLogPage() {
-  const { state, listTerminals, listPeople } = useStore()
+  const { listAccessLog, listTerminals } = useStore()
   const currentBuilding = useCurrentBuilding()
   const [terminalFilter, setTerminalFilter] = useState('')
   const [resultFilter, setResultFilter] = useState<AccessResult | ''>('')
-  // Real terminals and people from the API, for the filter and the names. The events are still mock data.
+  // The active terminals, for the filter. The log itself carries the names, also of removed terminals.
   const [terminals, setTerminals] = useState<Terminal[]>([])
-  const [people, setPeople] = useState<Person[]>([])
+  const [events, setEvents] = useState<AccessEvent[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     listTerminals(currentBuilding.id)
       .then((list) => !cancelled && setTerminals(list))
       .catch(() => !cancelled && setTerminals([]))
-    listPeople(currentBuilding.id)
-      .then((list) => !cancelled && setPeople(list))
-      .catch(() => !cancelled && setPeople([]))
     return () => {
       cancelled = true
     }
-  }, [listTerminals, listPeople, currentBuilding.id])
+  }, [listTerminals, currentBuilding.id])
 
-  const events = state.events.filter(
-    (ev) =>
-      ev.building_id === currentBuilding.id &&
-      (!terminalFilter || ev.terminal_id === terminalFilter) &&
-      (!resultFilter || ev.result === resultFilter),
-  )
+  useEffect(() => {
+    // Ignore an answer that arrives after the building or a filter changed.
+    let cancelled = false
+    listAccessLog(currentBuilding.id, { terminal: terminalFilter, result: resultFilter || undefined })
+      .then((list) => {
+        if (cancelled) return
+        setEvents(list)
+        setError(null)
+      })
+      .catch(() => !cancelled && setError("Can't reach the server. Try again in a moment."))
+    return () => {
+      cancelled = true
+    }
+  }, [listAccessLog, currentBuilding.id, terminalFilter, resultFilter])
 
   return (
     <>
@@ -39,16 +45,16 @@ export function AccessLogPage() {
         <div>
           <span className="label">{currentBuilding.name}</span>
           <h1 className="title">Access log</h1>
-          <p className="muted">Every check made by this building's terminals</p>
+          <p className="muted">The newest 100 checks made by this building's terminals</p>
         </div>
         <div className="toolbar">
           <label className="field">
             <span className="label">Terminal</span>
             <select className="select" value={terminalFilter} onChange={(e) => setTerminalFilter(e.target.value)}>
               <option value="">All</option>
-              {terminals.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
+              {terminals.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
                 </option>
               ))}
             </select>
@@ -68,8 +74,10 @@ export function AccessLogPage() {
         </div>
       </div>
 
+      {error && <p className="small error">{error}</p>}
+
       <div className="card table-wrap">
-        {events.length === 0 ? (
+        {events === null ? null : events.length === 0 ? (
           <p className="empty muted">No entries yet.</p>
         ) : (
           <table className="data">
@@ -82,29 +90,25 @@ export function AccessLogPage() {
               </tr>
             </thead>
             <tbody>
-              {events.map((ev) => {
-                const person = ev.person_id ? people.find((p) => p.id === ev.person_id) : undefined
-                const terminal = terminals.find((t) => t.id === ev.terminal_id)
-                return (
-                  <tr key={ev.id}>
-                    <td className="muted">{formatDateTime(ev.at)}</td>
-                    <td>
-                      {person ? (
-                        <div className="cell-row">
-                          <Avatar name={person.name} size={32} />
-                          {person.name}
-                        </div>
-                      ) : (
-                        <span className="faint">{ev.person_id ? 'Removed person' : 'Unknown face'}</span>
-                      )}
-                    </td>
-                    <td className="muted">{terminal?.name ?? 'Removed terminal'}</td>
-                    <td>
-                      <span className={`badge badge-${ev.result}`}>{ev.result}</span>
-                    </td>
-                  </tr>
-                )
-              })}
+              {events.map((ev) => (
+                <tr key={ev.id}>
+                  <td className="muted">{formatDateTime(ev.created_at)}</td>
+                  <td>
+                    {ev.person_name ? (
+                      <div className="cell-row">
+                        <Avatar name={ev.person_name} size={32} />
+                        {ev.person_name}
+                      </div>
+                    ) : (
+                      <span className="faint">Unknown face</span>
+                    )}
+                  </td>
+                  <td className="muted">{ev.terminal_name}</td>
+                  <td>
+                    <span className={`badge badge-${ev.result}`}>{ev.result}</span>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}
