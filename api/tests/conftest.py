@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, make_url, text
 from sqlalchemy.orm import Session
 
+# Sets OpenCV's pixel limit. It must load before any test imports cv2.
+import app.faces.embedding  # noqa: F401
 from app.buildings.models import Building
 from app.core.config import settings
 from app.core.db import get_session
