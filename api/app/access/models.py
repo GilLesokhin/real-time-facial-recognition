@@ -45,7 +45,7 @@ class AccessEvent(Base):
     result: Mapped[AccessResult] = mapped_column(
         Enum(AccessResult, name="access_result", values_callable=lambda results: [result.value for result in results])
     )
-    # Similarity to the nearest person, for debugging denials. Null when no one is enrolled.
+    # Similarity to the nearest person, for debugging denials. Null when no face is found or no one is enrolled.
     score: Mapped[float | None]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
