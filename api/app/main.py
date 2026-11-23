@@ -4,6 +4,7 @@ from psycopg.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 from starlette.middleware.sessions import SessionMiddleware
 
+from app.access.router import router as access_router
 from app.auth.router import router as auth_router
 from app.buildings.router import router as buildings_router
 from app.core.config import settings
@@ -23,6 +24,7 @@ app.add_middleware(
     https_only=settings.COOKIE_SECURE,
 )
 
+app.include_router(access_router)
 app.include_router(auth_router)
 app.include_router(buildings_router)
 app.include_router(people_router)
