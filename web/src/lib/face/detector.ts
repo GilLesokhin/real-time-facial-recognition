@@ -32,8 +32,8 @@ export function createFaceDetector(
 }
 
 /**
- * Every knob of the browser side of face detection. The terminal uses DEFAULT_SETTINGS;
- * /prototype/face-detect lets you change them live.
+ * Every knob of the browser side of face detection. useFaceDetection uses DEFAULT_SETTINGS
+ * unless its caller passes other settings.
  */
 export interface DetectionSettings {
   /** Where the model runs: GPU (WebGL) or CPU (WASM). */
