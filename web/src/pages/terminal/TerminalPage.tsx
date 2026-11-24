@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useCamera } from '../../hooks/useCamera'
 import { useFaceDetection, type FaceShot } from '../../hooks/useFaceDetection'
 import { api, ApiError } from '../../lib/api'
-import { toScreenBox, type ScreenBox } from '../../lib/face/detector'
+import { toScreenBox, type BoundingBox, type ScreenBox } from '../../lib/face/detector'
 import { formatTime } from '../../lib/format'
 import type { IdentifyResponse, TerminalKey } from '../../types'
 
@@ -11,10 +11,14 @@ import type { IdentifyResponse, TerminalKey } from '../../types'
 type Door = { phase: 'idle' } | { phase: 'checking' } | { phase: 'granted'; personName: string } | { phase: 'denied' }
 
 /** After "granted" the door opens and closes: no requests for this long. */
-const GRANTED_HOLD_MS = 10_000
-/** How long "denied" stays on screen, unless the next request's result replaces it sooner. */
-const DENIED_SHOW_MS = 3000
+const GRANTED_HOLD_MS = 7000
+/** How long "denied" stays on screen. No retry until it ends. */
+const DENIED_SHOW_MS = 3500
 const MAX_REQUESTS_SHOWN = 4
+/** A result ends early when no face is seen for this long: the person walked away. */
+const FACE_GONE_MS = 1000
+/** A result ends early when the face's centre moves more than this, in face widths: a new person. */
+const FACE_JUMP = 0.5
 
 /** One identify request the terminal sent. Shown in the request panel. */
 interface SentRequest {
@@ -96,17 +100,41 @@ function SignInFailed({ status }: { status: keyof typeof SIGN_IN_FAILED }) {
   )
 }
 
+const centreDistance = (a: BoundingBox, b: BoundingBox) =>
+  Math.hypot(a.originX + a.width / 2 - (b.originX + b.width / 2), a.originY + a.height / 2 - (b.originY + b.height / 2))
+
+/** How far the box moves toward the new face each frame (0–1) when the face barely moves. */
+const BOX_SMOOTHING_SLOW = 0.3
+/** A move of this many box widths or more makes the box jump straight to the new face. */
+const BOX_FULL_SPEED_MOVE = 0.5
+
+/**
+ * Moves the box part of the way to the new face. Small moves (the detector's wobble) are smoothed.
+ * The bigger the move, the faster the box follows, so it speeds up when the person moves.
+ */
+const smoothBox = (prev: ScreenBox, next: ScreenBox): ScreenBox => {
+  const move = Math.hypot(next.left - prev.left, next.top - prev.top) / prev.width
+  const speed = Math.min(1, BOX_SMOOTHING_SLOW + (1 - BOX_SMOOTHING_SLOW) * (move / BOX_FULL_SPEED_MOVE))
+  const step = (a: number, b: number) => a + (b - a) * speed
+  return {
+    left: step(prev.left, next.left),
+    top: step(prev.top, next.top),
+    width: step(prev.width, next.width),
+    height: step(prev.height, next.height),
+  }
+}
+
 const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)} KB`
 
 const requestStatusText = (r: SentRequest) => {
-  if (r.status === 'pending') return 'waiting…'
-  if (r.status === 'granted') return `granted: ${r.personName}`
-  if (r.status === 'failed') return `failed: ${r.error}`
-  return 'denied'
+  if (r.status === 'pending') return 'Waiting…'
+  if (r.status === 'granted') return `Granted: ${r.personName}`
+  if (r.status === 'failed') return `Failed: ${r.error}`
+  return 'Denied'
 }
 
 /** The last few identify requests, for checking what the door sends and how fast the answer comes. */
-function RequestPanel({ terminalId, requests }: { terminalId: string; requests: SentRequest[] }) {
+function RequestPanel({ requests }: { requests: SentRequest[] }) {
   // Free the thumbnails' memory when they leave the panel or the page closes.
   const thumbs = useRef(new Set<string>())
   useEffect(() => {
@@ -119,23 +147,19 @@ function RequestPanel({ terminalId, requests }: { terminalId: string; requests: 
   return (
     <aside className="request-panel card">
       <span className="label">Requests to server</span>
-      <p className="small faint">The best face of each second is cropped and sent. After "granted", nothing is sent for 10 s.</p>
       {requests.length === 0 && <p className="small faint">No requests yet.</p>}
       {requests.map((r) => (
         <div key={r.id} className="request">
           <img src={r.thumbUrl} alt="" className="request-thumb mirrored" />
           <div className="request-body">
-            <code className="small">POST /terminals/{terminalId}/identify</code>
+            <code className="small">POST /terminals/{'{terminal_id}'}/identify</code>
             <span className="small muted">
               image/jpeg {r.shot.cropSize}×{r.shot.cropSize} · {kb(r.shot.jpeg.size)}
             </span>
-            <span className="small faint">
-              score {r.shot.score.toFixed(2)} · face in {r.shot.framesWithFace}/{r.shot.frames} frames · detect{' '}
-              {r.shot.detectMs.toFixed(0)} ms
-            </span>
+            <span className="small faint">Face detection in browser: {r.shot.detectMs.toFixed(0)} ms</span>
+            <span className="small faint">Server response: {r.ms === null ? '…' : `${r.ms.toFixed(0)} ms`}</span>
             <span className={`small request-status ${r.status}`}>
               {formatTime(r.at)} · {requestStatusText(r)}
-              {r.ms !== null && ` · ${r.ms.toFixed(0)} ms`}
             </span>
           </div>
         </div>
@@ -155,6 +179,8 @@ export function TerminalPage() {
   const [now, setNow] = useState(() => new Date())
   const nextRequestId = useRef(1)
   const resultTimer = useRef<number | undefined>(undefined)
+  /** The face the shown result belongs to, in video pixels, and when it was last seen. */
+  const resultFace = useRef<{ box: BoundingBox; seenAt: number } | null>(null)
 
   useEffect(() => {
     const clock = window.setInterval(() => setNow(new Date()), 10_000)
@@ -166,10 +192,10 @@ export function TerminalPage() {
 
   /**
    * POST /terminals/{id}/identify with the face crop and the terminal's key.
-   * One request at a time. After "granted", nothing is sent for GRANTED_HOLD_MS. After "denied",
-   * sending goes on at once: the person may still be getting into position.
+   * One request at a time. Nothing is sent while a result shows: GRANTED_HOLD_MS after "granted",
+   * DENIED_SHOW_MS after "denied". A result ends sooner when its face leaves, so a new person is quick.
    */
-  const canSend = door.phase === 'idle' || door.phase === 'denied'
+  const canSend = door.phase === 'idle'
   const updateRequest = (id: number, change: Partial<SentRequest>) =>
     setRequests((rs) => rs.map((r) => (r.id === id ? { ...r, ...change } : r)))
 
@@ -198,6 +224,7 @@ export function TerminalPage() {
         updateRequest(id, { status: answer.result, personName: answer.person_name, ms: performance.now() - sentAt })
         if (answer.result === 'granted') setDoor({ phase: 'granted', personName: answer.person_name ?? '' })
         else setDoor({ phase: 'denied' })
+        resultFace.current = { box: shot.box, seenAt: performance.now() }
         resultTimer.current = window.setTimeout(
           () => setDoor({ phase: 'idle' }),
           answer.result === 'granted' ? GRANTED_HOLD_MS : DENIED_SHOW_MS,
@@ -214,16 +241,33 @@ export function TerminalPage() {
 
   const { live, model } = useFaceDetection(videoRef, { sending: canSend && !!terminal, onShot: identify })
 
-  // Place the face box over the live face. While a result shows, it stays where the face was.
+  // Place the face box over the live face. A result ends early when its face leaves or another face takes its place.
   const cameraRef = useRef<HTMLDivElement>(null)
   const [box, setBox] = useState<ScreenBox | null>(null)
   useLayoutEffect(() => {
     const el = cameraRef.current
-    if (!live?.best?.boundingBox || !el) {
+    const face = live?.best?.boundingBox
+    const showing = door.phase === 'granted' || door.phase === 'denied'
+    const shownFace = resultFace.current
+    if (showing && shownFace) {
+      const now = performance.now()
+      const gone = !face && now - shownFace.seenAt > FACE_GONE_MS
+      const jumped = !!face && centreDistance(face, shownFace.box) > FACE_JUMP * shownFace.box.width
+      if (gone || jumped) {
+        window.clearTimeout(resultTimer.current)
+        resultFace.current = null
+        setDoor({ phase: 'idle' })
+        setBox(null)
+        return
+      }
+      if (face) resultFace.current = { box: face, seenAt: now }
+    }
+    if (!face || !el) {
       if (door.phase === 'idle') setBox(null)
       return
     }
-    setBox(toScreenBox(live.best.boundingBox, live.video, { width: el.clientWidth, height: el.clientHeight }, true))
+    const target = toScreenBox(face, live.video, { width: el.clientWidth, height: el.clientHeight }, true)
+    setBox((prev) => (prev ? smoothBox(prev, target) : target))
   }, [live, door.phase])
 
   if (signIn.status === 'loading') return null
@@ -281,7 +325,7 @@ export function TerminalPage() {
         </p>
       </footer>
 
-      <RequestPanel terminalId={shown.id} requests={requests} />
+      <RequestPanel requests={requests} />
     </div>
   )
 }

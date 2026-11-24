@@ -42,16 +42,16 @@ export interface DetectionSettings {
   minConfidence: number
   /** How often the model runs. */
   detectEveryMs: number
-  /** How often the best face is sent. */
-  windowMs: number
+  /** How many of the latest frames are looked at when deciding to send. */
+  windowFrames: number
   /**
    * Faces narrower than this, in camera pixels, are ignored: people far away or walking past.
    * In pixels, not a share of the frame, because what matters is detail: the server's model looks
    * at the face at about 112 px, so a smaller face would be upscaled and recognized badly.
    */
   minFacePx: number
-  /** Share of the window's frames that must have a usable face before anything is sent. */
-  minSteady: number
+  /** As soon as this many of the latest `windowFrames` frames have a usable face, the best one is sent. */
+  minGoodFrames: number
   /** Side of the square JPEG sent to the server, in pixels. */
   cropSize: number
   /** The crop is the face box's longer side times this. BlazeFace's box is tight (brows to chin). */
@@ -64,9 +64,9 @@ export const DEFAULT_SETTINGS: DetectionSettings = {
   delegate: 'GPU',
   minConfidence: 0.85,
   detectEveryMs: 100,
-  windowMs: 1000,
+  windowFrames: 10,
   minFacePx: 128, // 112 px model input plus some headroom
-  minSteady: 0.3, // 3 of 10 frames
+  minGoodFrames: 3,
   cropSize: 320, // the face fills about 160 px of it
   cropMargin: 2.0,
   jpegQuality: 0.85,
