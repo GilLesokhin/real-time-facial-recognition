@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Logo } from '../components/Logo'
-import { useAuth } from '../store/auth'
+import { useAuth } from '../store/useAuth'
 import { useStore } from '../store/store'
 
 export function WelcomePage() {

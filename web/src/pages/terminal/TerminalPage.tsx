@@ -19,6 +19,8 @@ const MAX_REQUESTS_SHOWN = 4
 const FACE_GONE_MS = 1000
 /** A result ends early when the face's centre moves more than this, in face widths: a new person. */
 const FACE_JUMP = 0.5
+/** A face that comes back after a gap this long may be someone else, so the result ends. Shorter gaps are detector flicker. */
+const FACE_RETURN_MS = 200
 
 /** One identify request the terminal sent. Shown in the request panel. */
 interface SentRequest {
@@ -105,7 +107,9 @@ const centreDistance = (a: BoundingBox, b: BoundingBox) =>
 
 /** How far the box moves toward the new face each frame (0–1) when the face barely moves. */
 const BOX_SMOOTHING_SLOW = 0.3
-/** A move of this many box widths or more makes the box jump straight to the new face. */
+/** How far the box moves each frame when the face moves fast. Below 1, so the box never jumps. */
+const BOX_SMOOTHING_FAST = 0.85
+/** A move of this many box widths or more makes the box follow at BOX_SMOOTHING_FAST. */
 const BOX_FULL_SPEED_MOVE = 0.5
 
 /**
@@ -114,7 +118,10 @@ const BOX_FULL_SPEED_MOVE = 0.5
  */
 const smoothBox = (prev: ScreenBox, next: ScreenBox): ScreenBox => {
   const move = Math.hypot(next.left - prev.left, next.top - prev.top) / prev.width
-  const speed = Math.min(1, BOX_SMOOTHING_SLOW + (1 - BOX_SMOOTHING_SLOW) * (move / BOX_FULL_SPEED_MOVE))
+  const speed = Math.min(
+    BOX_SMOOTHING_FAST,
+    BOX_SMOOTHING_SLOW + (BOX_SMOOTHING_FAST - BOX_SMOOTHING_SLOW) * (move / BOX_FULL_SPEED_MOVE),
+  )
   const step = (a: number, b: number) => a + (b - a) * speed
   return {
     left: step(prev.left, next.left),
@@ -244,6 +251,8 @@ export function TerminalPage() {
   // Place the face box over the live face. A result ends early when its face leaves or another face takes its place.
   const cameraRef = useRef<HTMLDivElement>(null)
   const [box, setBox] = useState<ScreenBox | null>(null)
+  /** False when the box has no face to follow, so the next face doesn't glide in from the old place. */
+  const boxFollowsFace = useRef(false)
   useLayoutEffect(() => {
     const el = cameraRef.current
     const face = live?.best?.boundingBox
@@ -253,22 +262,28 @@ export function TerminalPage() {
       const now = performance.now()
       const gone = !face && now - shownFace.seenAt > FACE_GONE_MS
       const jumped = !!face && centreDistance(face, shownFace.box) > FACE_JUMP * shownFace.box.width
-      if (gone || jumped) {
+      const returned = !!face && now - shownFace.seenAt > FACE_RETURN_MS
+      if (gone || jumped || returned) {
         window.clearTimeout(resultTimer.current)
         resultFace.current = null
         setDoor({ phase: 'idle' })
-        setBox(null)
+        boxFollowsFace.current = false
         return
       }
       if (face) resultFace.current = { box: face, seenAt: now }
     }
     if (!face || !el) {
-      if (door.phase === 'idle') setBox(null)
+      if (door.phase === 'idle') boxFollowsFace.current = false
       return
     }
     const target = toScreenBox(face, live.video, { width: el.clientWidth, height: el.clientHeight }, true)
-    setBox((prev) => (prev ? smoothBox(prev, target) : target))
+    // A face that just appeared starts at its own place. It doesn't glide in from the last face's place.
+    const glide = boxFollowsFace.current
+    boxFollowsFace.current = true
+    setBox((prev) => (prev && glide ? smoothBox(prev, target) : target))
   }, [live, door.phase])
+  // With no face and no result, there is no box. The stale box is only hidden, not cleared.
+  const shownBox = !live?.best && door.phase === 'idle' ? null : box
 
   if (signIn.status === 'loading') return null
   if (signIn.status !== 'ready') return <SignInFailed status={signIn.status} />
@@ -305,10 +320,10 @@ export function TerminalPage() {
           <video ref={videoRef} muted playsInline style={{ visibility: status === 'live' ? 'visible' : 'hidden' }} />
           {status !== 'live' && <Silhouette />}
           <span className="camera-label label">Camera</span>
-          {(box || phase !== 'idle') && (
+          {(shownBox || phase !== 'idle') && (
             <div
               className={`face-box ${phase}`}
-              style={box ? { left: box.left, top: box.top, width: box.width, height: box.height } : undefined}
+              style={shownBox ? { left: shownBox.left, top: shownBox.top, width: shownBox.width, height: shownBox.height } : undefined}
             >
               {(phase === 'granted' || phase === 'denied') && (
                 <span className={`face-tag ${phase}`}>{phase === 'granted' ? 'Access granted' : 'Access denied'}</span>

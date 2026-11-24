@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
-import { useAuth } from './auth'
+import { useAuth } from './useAuth'
 import { api, withQuery } from '../lib/api'
 import type { AccessEvent, AccessResult, Building, Person, Terminal, TerminalListItem, User, UserRole } from '../types'
 

@@ -1,7 +1,7 @@
 import { Building2, History, LogOut, MonitorSmartphone, ShieldCheck, Users } from 'lucide-react'
 import { Navigate, NavLink, Outlet, useMatch, useNavigate } from 'react-router-dom'
 import { NotFound } from '../pages/NotFoundPage'
-import { useAuth } from '../store/auth'
+import { useAuth } from '../store/useAuth'
 import { useStore } from '../store/store'
 import { Logo } from './Logo'
 

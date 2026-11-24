@@ -2,7 +2,7 @@ import { useState, type SubmitEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { ApiError } from '../lib/api'
-import { useAuth } from '../store/auth'
+import { useAuth } from '../store/useAuth'
 
 /** Public sign-up. New accounts are unassigned until a Platform Admin gives them a role. */
 export function SignUpPage() {

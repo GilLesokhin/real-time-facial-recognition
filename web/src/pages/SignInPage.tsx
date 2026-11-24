@@ -2,7 +2,7 @@ import { useState, type SubmitEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { ApiError } from '../lib/api'
-import { useAuth } from '../store/auth'
+import { useAuth } from '../store/useAuth'
 import { useStore } from '../store/store'
 
 const errorMessage = (err: unknown) => {
