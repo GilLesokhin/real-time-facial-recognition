@@ -10,6 +10,7 @@ Before you start:
 
 - Make sure that uv and Docker are installed.
 - Make sure that Docker is running.
+- Make sure that nothing else uses port 5432. Each copy of the repo starts its own Postgres container on that port.
 
 The setup writes the email and password of the first Platform Admin into `.env`. Use a test email and password. Do not use a real password.
 
@@ -36,10 +37,10 @@ If `.env` exists, the script asks if you want to keep it. Then the script does t
 1. Start Postgres. From the repo root, run:
 
    ```bash
-   docker compose up -d
+   docker compose up -d --wait
    ```
 
-   This creates the `building_entry` database. The tests create the `building_entry_test` database when they first run.
+   `--wait` waits until Postgres is ready. This creates the `building_entry` database. The tests create the `building_entry_test` database when they first run.
 
 2. Copy `.env.example` to `.env`. Then set these values:
    - `SECRET_KEY`: a random text of 32 or more characters. To make one, run:
@@ -63,15 +64,16 @@ If `.env` exists, the script asks if you want to keep it. Then the script does t
 
    The face models go into `face_models/`.
 
-4. Optional: add demo buildings, terminals and admins:
+4. Optional: add demo buildings, terminals, admins and people:
 
    ```bash
    uv run python -m app.demo_data
    ```
 
    - The script is `app/demo_data.py`.
+   - Each building gets a Building Admin. They sign in with `PLATFORM_ADMIN_PASSWORD`. Their emails are `demo.admin@example.com` and `harbor.admin@example.com`.
+   - Each building gets 5 people. Their faces come from the public-domain portraits in `tests/fixtures/`.
    - You can run it more than one time. It skips the data that already exists.
-   - It does not add people. Enroll the people with the webcam in the web app.
 
 ## Run
 
@@ -103,7 +105,7 @@ uv run pytest
 | `app/<feature>/` | One folder for each feature: `auth`, `users`, `buildings`, `terminals`, `people`, `access` |
 | `app/faces/` | Changes a face photo into an embedding (OpenCV YuNet and SFace) |
 | `migrations/versions/` | The Alembic migrations |
-| `tests/<feature>/` | The tests for each feature. `tests/conftest.py` sets up the test database. |
+| `tests/` | One folder for each feature. `schema/` tests the database rules. `fixtures/` has the face photos. `conftest.py` sets up the test database. |
 
 ## Layers
 

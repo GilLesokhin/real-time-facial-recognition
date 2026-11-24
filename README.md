@@ -57,3 +57,5 @@ With the demo data loaded:
 1. Pick a building in the sidebar.
 2. Add yourself on **People** and snap a photo with the webcam.
 3. Open a terminal from **Terminals** and step up to the camera. You're in.
+
+> **Note:** sign in with the email and password you chose for the Platform Admin during setup. The demo data adds 2 buildings, with terminals and enrolled people. Each building also has a Building Admin, `demo.admin@example.com` and `harbor.admin@example.com`, who signs in with that same password.
