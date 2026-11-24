@@ -1,52 +1,51 @@
-# Real Time Facial Recognition: front-end mockup
+# Real Time Facial Recognition: web
 
-A React + TypeScript front end for the face-recognition entry system. **Sign-in and buildings are real**: they go to the Python API (`api/`). Everything else (people, terminals, the access log, the Admins page) is still mock data saved to `localStorage`, until those endpoints exist.
+The front end of the system. It uses React, TypeScript and Vite. It has two parts:
 
-## Run it
+- The admin panel
+- The door terminal
 
-Start the API first (see `api/`), on http://localhost:8000. Then:
+All the data comes from the API in `api/`.
+
+Run all the commands in this file from `web/`.
+
+## Run
+
+Before you start, make sure that Node.js is installed and the API is running. See [api/README.md](../api/README.md).
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
-Open http://localhost:5173. Vite forwards `/api/*` to the API (see `vite.config.ts`), so the browser sees one origin and the session cookie works without CORS.
+Open http://localhost:5173 and sign in as the Platform Admin from `api/.env`.
 
-Sign in as the Platform Admin you create with `uv run python -m app.users.create_admin`, run from `api/`. New accounts start Unassigned and can't sign in, and the Admins page doesn't use the API yet, so for now other accounts get a role in the database:
+Vite sends all the requests to `/api/*` to the API on http://localhost:8000. Thus, the browser sees one origin, and the session cookie works without CORS (Cross-Origin Resource Sharing). See `vite.config.ts`.
 
-```sql
-UPDATE users SET role = 'building_admin', building_id = '<building id>' WHERE email = 'someone@example.com';
+## Check
+
+```bash
+npm run lint
+npm run build
 ```
 
-"Reset demo data" in the sidebar restores the mock data.
+`npm run build` also does the TypeScript check.
 
-## Screens
+## Things to know
 
-| Route | Screen |
-| -- | -- |
-| `/` | Welcome page with sign-in and sign-up |
-| `/login`, `/signup` | Sign in, and sign up (new accounts start Unassigned) |
-| `/buildings` | Buildings. Platform Admins can add, edit and delete them |
-| `/users` | Platform Admin: give users a role and buildings |
-| `/buildings/:buildingId/terminals` | Terminals (one per door). This is where `/buildings/:buildingId` opens |
-| `/buildings/:buildingId/people` | People allowed in, with face photos (`/new`, `/:id/edit`) |
-| `/buildings/:buildingId/access-log` | Every check, filtered by terminal and result |
-| `/terminal/:terminalId` | The door screen: camera, face box, granted or denied |
-| Anything else | 404 page |
-
-The terminal has demo controls to choose who the camera "sees", since face matching needs the backend.
+- **Camera:** the browser lets the page use the camera only on `localhost` or on HTTPS.
+- **New accounts:** a new account from the sign-up page has no role. It cannot sign in until a Platform Admin gives it a role on the **Admins** page.
+- **Terminal sign-in:** the terminal gets its key from the API with the admin's session cookie. Thus, an admin must be signed in in the same browser. The key stays only in the memory of that tab.
+- **Enrollment:** the browser finds the face and sends only a crop of it. The API refuses a photo with no face or with more than one face.
+- **At the door:** the terminal sends the biggest face that is near enough to the camera. It shows "granted" with the name of the person, or "denied".
 
 ## Code map
 
-| Path | What |
+| Path | Contents |
 | -- | -- |
-| `src/store/store.tsx` | All data and actions. Each action notes the endpoint it stands in for |
-| `src/types.ts` | Data model shared by every screen |
-| `src/data/seed.ts` | Demo data |
-| `src/pages/` | One file per screen |
-| `src/components/` | Layout, modals, avatar, logo, photo picker |
-| `src/hooks/useCamera.ts` | Webcam stream and frame capture |
-| `src/index.css` | Design tokens and all styles |
-
-To connect a real backend, replace the actions in `store.tsx` with API calls. The screens don't need to change.
+| `src/App.tsx` | All the routes |
+| `src/pages/` | One file for each screen. `admin/` has the admin panel. `terminal/` has the door screen. |
+| `src/components/` | Shared parts: the layout, modals and photo picker |
+| `src/store/` | The API calls, the shared state and the signed-in user |
+| `src/lib/` | `api.ts` makes all the calls to the API. `face/` finds faces with MediaPipe. |
+| `src/hooks/` | The webcam stream and live face detection |
