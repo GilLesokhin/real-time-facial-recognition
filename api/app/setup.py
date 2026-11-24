@@ -22,8 +22,8 @@ ENV_EXAMPLE = API_DIR / ".env.example"
 MIN_PASSWORD_LENGTH = 8
 
 
-def run(command: list[str], cwd: Path = API_DIR) -> None:
-    print(f"\n> {' '.join(command)}")
+def run(title: str, command: list[str], cwd: Path = API_DIR) -> None:
+    print(f"\n== {title}", flush=True)
     result = subprocess.run(command, cwd=cwd)
     if result.returncode != 0:
         sys.exit(f"Setup stopped: '{' '.join(command)}' failed.")
@@ -128,7 +128,7 @@ def write_env(email: str, password: str, name: str) -> None:
             line = env_line(key, values[key])
         lines.append(line)
     ENV_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"Wrote {ENV_FILE}.")
+    print(f"Wrote {ENV_FILE}.", flush=True)
 
 
 def check_args(args: argparse.Namespace) -> None:
@@ -149,10 +149,10 @@ def setup(args: argparse.Namespace) -> None:
     check_args(args)
     check_tools()
     # --wait: go on only when Postgres takes connections (see the healthcheck in docker-compose.yml).
-    run(["docker", "compose", "up", "-d", "--wait"], cwd=REPO_DIR)
+    run("Start Postgres", ["docker", "compose", "up", "-d", "--wait"], cwd=REPO_DIR)
 
     if keep_existing_env():
-        print("Keeping .env. The admin comes from it.")
+        print("Keeping .env. The admin comes from it.", flush=True)
         if args.email or args.password or args.name:
             print("--email, --password and --name are not used. Answer n to write them into a new .env.")
     else:
@@ -165,17 +165,20 @@ def setup(args: argparse.Namespace) -> None:
     # Asked here, so every question comes before the long steps.
     add_demo_data = args.demo_data
     if add_demo_data is None:
-        add_demo_data = ask_yes_no("\nAdd demo buildings, terminals and admins?", "y")
+        add_demo_data = ask_yes_no("\nAdd demo buildings, terminals, admins and people?", "y")
 
-    run(["uv", "sync"])
-    run(["uv", "run", "python", "-m", "app.faces.download_models"])
-    run(["uv", "run", "alembic", "upgrade", "head"])
+    run("Install the Python packages", ["uv", "sync", "--quiet"])
+    run("Download the face models (about 40 MB the first time)", ["uv", "run", "python", "-m", "app.faces.download_models"])
+    run("Build the database", ["uv", "run", "alembic", "upgrade", "head"])
     # A new process, so it reads the .env written above.
-    run(["uv", "run", "python", "-m", "app.users.create_admin"])
+    run("Create the Platform Admin", ["uv", "run", "python", "-m", "app.users.create_admin"])
     if add_demo_data:
-        run(["uv", "run", "python", "-m", "app.demo_data"])
+        run("Add the demo data", ["uv", "run", "python", "-m", "app.demo_data"])
 
-    print("\nSetup done. Start the API with: uv run fastapi dev app/main.py")
+    print("\n== Setup done. Next:")
+    print("  1. From api/, start the API:     uv run fastapi dev app/main.py")
+    print("  2. From web/, start the web app: npm ci, then npm run dev")
+    print("  3. Open http://localhost:5173 and sign in as the Platform Admin.")
 
 
 def main() -> None:
@@ -186,7 +189,7 @@ def main() -> None:
     parser.add_argument(
         "--demo-data",
         action=argparse.BooleanOptionalAction,
-        help="Add demo buildings, terminals and admins (app/demo_data.py). Leave it out to be asked",
+        help="Add demo buildings, terminals, admins and people (app/demo_data.py). Leave it out to be asked",
     )
     args = parser.parse_args()
     try:

@@ -8,6 +8,9 @@ import os
 # Refuse images over 4096x4096 before decoding, so a huge file can't fill the memory.
 # OpenCV reads this once, when cv2 is first imported.
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(4096 * 4096)
+# Show only OpenCV errors. Loading the models prints a harmless warning ("Targets are not supported
+# by the new graph engine"), which made the scripts look broken. Errors still show.
+os.environ.setdefault("OPENCV_LOG_LEVEL", "ERROR")
 
 import threading  # noqa: E402
 

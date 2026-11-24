@@ -24,6 +24,15 @@ def get_active_person(session: Session, person_id: uuid.UUID) -> Person | None:
     return person
 
 
+def get_active_person_by_name(session: Session, building_id: uuid.UUID, name: str) -> Person | None:
+    query = select(Person).where(
+        Person.building_id == building_id,
+        Person.is_active,
+        func.lower(Person.name) == name.lower(),
+    )
+    return session.scalars(query).first()
+
+
 def add_person(session: Session, person: Person) -> Person:
     session.add(person)
     session.flush()  # sends the INSERT so id and created_at are filled in
