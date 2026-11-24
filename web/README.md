@@ -47,5 +47,5 @@ npm run build
 | `src/pages/` | One file for each screen. `admin/` has the admin panel. `terminal/` has the door screen. |
 | `src/components/` | Shared parts: the layout, modals and photo picker |
 | `src/store/` | The API calls, the shared state and the signed-in user |
-| `src/lib/` | `api.ts` makes all the calls to the API. `face/` finds faces with MediaPipe. |
+| `src/lib/` | `api.ts` sends all the calls to the API. `face/` detects faces with MediaPipe. |
 | `src/hooks/` | The webcam stream and live face detection |

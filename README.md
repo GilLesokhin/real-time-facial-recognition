@@ -10,10 +10,10 @@ Your face is the key.
 - Fast and secure entry. The door terminal recognizes the resident's face.
 ## How face recognition works
 
-The browser finds the face. The server decides who it is.
+The client finds the face. The server decides who it is.
 
-- **Browser:** MediaPipe watches the webcam and picks one face to check.
-- **Server:** OpenCV YuNet and SFace turn that face into an embedding. pgvector finds the closest enrolled person in the building.
+- **Client:** MediaPipe watches the webcam and picks one face to check.
+- **Server:** OpenCV YuNet and SFace convert that face to an embedding. pgvector finds the closest enrolled person in the building.
 - **Result:** close enough means "granted". Anything else means "denied".
 
 Only embeddings are stored, never photos. The terminal checks one face at a time.

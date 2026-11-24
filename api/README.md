@@ -30,7 +30,7 @@ uv run python -m app.setup --email admin@example.com --password example-password
 
 Use `--no-demo-data` to skip the demo data.
 
-If `.env` exists, the script asks if you want to keep it. Then the script does the steps of option 2.
+If `.env` exists, the script asks if you want to keep it. Then the script runs the steps of option 2.
 
 ### Option 2: by hand
 
@@ -43,7 +43,7 @@ If `.env` exists, the script asks if you want to keep it. Then the script does t
    `--wait` waits until Postgres is ready. This creates the `building_entry` database. The tests create the `building_entry_test` database when they first run.
 
 2. Copy `.env.example` to `.env`. Then set these values:
-   - `SECRET_KEY`: a random text of 32 or more characters. To make one, run:
+   - `SECRET_KEY`: a random string of 32 or more characters. To create one, run:
 
      ```bash
      uv run python -c "import secrets; print(secrets.token_urlsafe(32))"
@@ -71,8 +71,8 @@ If `.env` exists, the script asks if you want to keep it. Then the script does t
    ```
 
    - The script is `app/demo_data.py`.
-   - Each building gets a Building Admin. They sign in with `PLATFORM_ADMIN_PASSWORD`. Their emails are `demo.admin@example.com` and `harbor.admin@example.com`.
-   - Each building gets 5 people. Their faces come from the public-domain portraits in `tests/fixtures/`.
+   - Each building has a Building Admin. They sign in with `PLATFORM_ADMIN_PASSWORD`. Their emails are `demo.admin@example.com` and `harbor.admin@example.com`.
+   - Each building has 5 people. Their faces come from the public-domain portraits in `tests/fixtures/`.
    - You can run it more than one time. It skips the data that already exists.
 
 ## Run
@@ -100,10 +100,10 @@ uv run pytest
 
 | Path | Contents |
 | -- | -- |
-| `app/main.py` | The app. It adds the routers and the session cookie. It changes a unique-index error into a 409 response. |
+| `app/main.py` | The app. It adds the routers and the session cookie. It converts a unique-index error to a 409 response. |
 | `app/core/` | Settings, the database session, password hashing and terminal keys |
 | `app/<feature>/` | One folder for each feature: `auth`, `users`, `buildings`, `terminals`, `people`, `access` |
-| `app/faces/` | Changes a face photo into an embedding (OpenCV YuNet and SFace) |
+| `app/faces/` | Converts a face photo to an embedding (OpenCV YuNet and SFace) |
 | `migrations/versions/` | The Alembic migrations |
 | `tests/` | One folder for each feature. `schema/` tests the database rules. `fixtures/` has the face photos. `conftest.py` sets up the test database. |
 
@@ -139,9 +139,9 @@ flowchart LR
 
 ## Add a feature
 
-1. Make a folder `app/<feature>/` with the files in [Layers](#layers). Use `app/buildings/` as an example.
+1. Create a folder `app/<feature>/` with the files in [Layers](#layers). Use `app/buildings/` as an example.
 2. To let only signed-in admins use an endpoint, add `admin: SignedAdmin` to its parameters. `SignedAdmin` is in `app/auth/deps.py`.
-3. If you change a `models.py`, make a migration and apply it:
+3. If you change any `models.py`, create a migration and apply it:
 
    ```bash
    uv run alembic revision --autogenerate -m "..."
