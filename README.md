@@ -1,30 +1,59 @@
 # Real Time Facial Recognition
 
-A face-recognition entry system for multiple buildings. Admins enroll the people allowed into a building with a face photo, and a terminal at each door recognizes faces from a webcam and shows whether the person may enter.
+A face-recognition entry system for multiple buildings.
 
-| Folder | What |
-| -- | -- |
-| `api/` | Python backend (FastAPI, Postgres). See [api/README.md](api/README.md) |
-| `web/` | React + TypeScript admin panel and door terminal (Vite). See [web/README.md](web/README.md) |
+Entry should take no effort. Residents carry nothing. Admins know who may enter, and who did.
 
-## Run it
+Your face is the key.
 
-Start Postgres, then the API ([api/README.md](api/README.md) has the one-time setup):
+- An admin panel to manage buildings, residents and doors, with a full access log.
+- Fast and secure entry. The door terminal recognizes the resident's face.
+## How face recognition works
+
+The browser finds the face. The server decides who it is.
+
+- **Browser:** MediaPipe watches the webcam and picks one face to check.
+- **Server:** OpenCV YuNet and SFace turn that face into an embedding. pgvector finds the closest enrolled person in the building.
+- **Result:** close enough means "granted". Anything else means "denied".
+
+Only embeddings are stored, never photos. The terminal checks one face at a time.
+
+## What's inside
+
+| Folder | What | Docs |
+| -- | -- | -- |
+| `api/` | Python backend: FastAPI, SQLAlchemy, Alembic, Postgres with pgvector | [api/README.md](api/README.md) |
+| `web/` | Admin panel and door terminal: React, TypeScript, Vite | [web/README.md](web/README.md) |
+
+## Quick start
+
+You'll need [uv](https://docs.astral.sh/uv/), Node.js, Docker and a webcam.
+
+Set up the API once, from `api/`. The script starts Postgres, writes `.env`, downloads the face models, builds the database and creates your first admin. Say yes to the demo data:
 
 ```bash
-docker compose up -d
-cd api
+uv run python -m app.setup
+```
+
+Then start the API from `api/`:
+
+```bash
 uv run fastapi dev app/main.py
 ```
 
-Then, in a second terminal, start the web app:
+And the web app from `web/`, in a second terminal:
 
 ```bash
-cd web
 npm ci
 npm run dev
 ```
 
-Open http://localhost:5173 and sign in as the Platform Admin from `api/.env`.
+Open http://localhost:5173 and sign in with the admin you just created.
 
-The plan, PRD, tickets and design docs live in the Linear project "Real Time Facial Recognition".
+## Try it yourself
+
+With the demo data loaded:
+
+1. Pick a building in the sidebar.
+2. Add yourself on **People** and snap a photo with the webcam.
+3. Open a terminal from **Terminals** and step up to the camera. You're in.
