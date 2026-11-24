@@ -113,12 +113,12 @@ Each feature folder has the same files. A request goes down through the layers. 
 
 ```mermaid
 flowchart LR
-    deps["deps.py<br/>loads and checks"] --> router
-    router["router.py<br/>HTTP"] --> service["service.py<br/>rules, commit"]
-    service --> db["db.py<br/>queries"]
+    deps["<b>deps.py</b><br/>──────────<br/>loads and checks"] --> router
+    router["<b>router.py</b><br/>──────────<br/>HTTP"] --> service["<b>service.py</b><br/>──────────<br/>rules, commit"]
+    service --> db["<b>db.py</b><br/>──────────<br/>queries"]
     db --> pg[(Postgres)]
-    schemas["schemas.py<br/>request and response types"] -.-> router
-    models["models.py<br/>tables"] -.-> db
+    schemas["<b>schemas.py</b><br/>──────────<br/>request and response types"] -.-> router
+    models["<b>models.py</b><br/>──────────<br/>tables"] -.-> db
 ```
 
 | File | What it does | Rules |
