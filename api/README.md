@@ -121,12 +121,12 @@ flowchart LR
     models["<b>models.py</b><br/>──────────<br/>tables"] -.-> db
 ```
 
-| File | What it does | Rules |
+| File | What it does | Limits |
 | -- | -- | -- |
-| `router.py` | The HTTP part: the path, the status code, and the request and response types | It has no rules and no queries. It calls one service function. |
-| `deps.py` | It loads and checks the data that a route needs before the route runs. Examples: `SignedAdmin`, `ManageableBuilding`. | It returns 401 or 404 if the check fails. A route gets it as a parameter. |
-| `service.py` | The rules: who can do what, and which data is valid | It returns a clear error for each broken rule. It calls `session.commit()` one time, as its last step. |
-| `db.py` | The SQLAlchemy queries | It has no rules and does not commit. It calls `flush()` when it needs the id of a new row. |
+| `deps.py` | The checks that a route needs before it runs | Returns 401 or 404 if a check fails. A route takes it as a parameter. Examples: `SignedAdmin`, `ManageableBuilding`. |
+| `router.py` | The HTTP part: the path, the status code, and the request and response types | No rules and no queries. Calls one service function. |
+| `service.py` | The rules: who can do what, and which data is valid | Returns a clear error for each broken rule. Calls `session.commit()` one time, as the last step. |
+| `db.py` | The SQLAlchemy queries | No rules and no commit. Calls `flush()` when a new row needs its id. |
 | `models.py` | The database tables | Each change needs a new migration. |
 | `schemas.py` | The Pydantic types for the requests and responses | Each endpoint has one `Request` class and one `Response` class. |
 
