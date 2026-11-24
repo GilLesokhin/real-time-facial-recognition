@@ -1,6 +1,6 @@
 # Real Time Facial Recognition
 
-A face-recognition entry system for multiple buildings.
+A real-time facial recognition building entry system for multiple buildings.
 
 Entry should take no effort. Residents carry nothing. Admins know who may enter, and who did.
 
@@ -10,15 +10,13 @@ Your face is the key.
 - Fast and secure entry. The door terminal recognizes the resident's face.
 ## How face recognition works
 
-The client finds the face. The server decides who it is.
+A door terminal finds a face. The server decides if the person is a resident.
 
 - **Client:** MediaPipe watches the webcam and picks one face to check.
 - **Server:** OpenCV YuNet and SFace convert that face to an embedding. pgvector finds the closest enrolled person in the building.
 - **Result:** close enough means "granted". Anything else means "denied".
 
-Only embeddings are stored, never photos. The terminal checks one face at a time.
-
-## What's inside
+## Project layout
 
 | Folder | What | Docs |
 | -- | -- | -- |
@@ -57,5 +55,7 @@ With the demo data loaded:
 1. Pick a building in the sidebar.
 2. Add yourself on **People** and snap a photo with the webcam.
 3. Open a terminal from **Terminals** and step up to the camera. You're in.
+4. Remove yourself on **People**, then try to identify again. Your access is denied.
+5. Enroll yourself in one building, then try to identify at a terminal in the other building. Your access is denied.
 
-> **Note:** sign in with the email and password you chose for the Platform Admin during setup. The demo data adds 2 buildings, with terminals and enrolled people. Each building also has a Building Admin, `demo.admin@example.com` and `harbor.admin@example.com`, who signs in with that same password.
+> **Note:** sign in with the Platform Admin email and password from setup. The demo data adds 2 buildings with terminals and enrolled people. Their Building Admins are `demo.admin@example.com` and `harbor.admin@example.com`. Both sign in with the Platform Admin password. A Building Admin sees only their own building.
