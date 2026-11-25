@@ -256,7 +256,6 @@ function AccessForm({ user, onSaved, onClose }: { user: User; onSaved: () => voi
                 </option>
               ))}
             </select>
-            {needsBuilding && <span className="small error">Pick a building.</span>}
           </label>
         )}
         {role === 'platform_admin' && (

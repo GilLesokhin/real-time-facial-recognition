@@ -32,7 +32,7 @@ export function BuildingsPage() {
         <div>
           <span className="label">{isPlatformAdmin ? 'Platform' : 'Your building'}</span>
           <h1 className="title">Buildings</h1>
-          <p className="muted">{visibleBuildings.length} buildings</p>
+          <p className="muted">{visibleBuildings.length} {visibleBuildings.length === 1 ? 'building' : 'buildings'}</p>
         </div>
         {isPlatformAdmin && (
           <button type="button" className="btn btn-primary" onClick={() => setDialog({ kind: 'add' })}>
